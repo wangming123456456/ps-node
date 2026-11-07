@@ -12,6 +12,8 @@ const { app, core, action, constants } = require("photoshop");
 const fs = storage.localFileSystem;
 const formats = storage.formats;
 
+console.log("[ps-node] main.js loaded");
+
 const RELAY_STORAGE_KEY = "ps-node:relay";
 const POLL_TIMEOUT_MS = 25000;
 
@@ -142,15 +144,16 @@ async function placeImageAsLayer(image, documentName, layerName) {
                 await action.batchPlay([{ _obj: "select", _target: [{ _ref: "document", _name: target.name }] }], {});
             }
             await action.batchPlay([{ _obj: "placeEvent", null: { _path: token, _kind: "local" }, _options: { dialogOptions: "dontDisplay" } }], {});
-            if (layerName && app.activeDocument && app.activeDocument.activeLayer) {
-                app.activeDocument.activeLayer.name = layerName;
-            }
+            const doc = app.activeDocument;
+            const placed = doc && doc.activeLayers && doc.activeLayers.length ? doc.activeLayers[0] : null;
+            if (layerName && placed) placed.name = layerName;
         },
         { commandName: "PS 节点：贴入图片" },
     );
 
     const doc = app.activeDocument;
-    return { doc: doc.name, layer: layerName || "", width: doc.width, height: doc.height };
+    const layer = doc.layers && doc.layers.length ? doc.layers[0].name : layerName || "";
+    return { doc: doc.name, layer, width: doc.width, height: doc.height };
 }
 
 /** 以图片新建文档（push 的 newDoc 模式）。 */
@@ -173,6 +176,8 @@ async function exportMergedImage(payload) {
     const maxEdge = Number(payload && payload.maxEdge) > 0 ? Number(payload.maxEdge) : 0;
     const folder = await fs.getTemporaryFolder();
     const file = await folder.createFile(`ps-node-pull-${Date.now()}.png`, { overwrite: true });
+    let exportedWidth = source.width;
+    let exportedHeight = source.height;
 
     await core.executeAsModal(
         async () => {
@@ -199,6 +204,8 @@ async function exportMergedImage(payload) {
                         await copy.resizeImage(Math.max(1, Math.round(copy.width * scale)), Math.max(1, Math.round(copy.height * scale)));
                     }
                 }
+                exportedWidth = copy.width;
+                exportedHeight = copy.height;
                 await copy.saveAs.png(file, { compression: 6 }, true);
             } finally {
                 copy.closeWithoutSaving();
@@ -210,8 +217,8 @@ async function exportMergedImage(payload) {
     return {
         image: "data:image/png;base64," + (await readFileBase64(file)),
         doc: source.name,
-        width: source.width,
-        height: source.height,
+        width: exportedWidth,
+        height: exportedHeight,
     };
 }
 
@@ -268,10 +275,16 @@ async function connect() {
         const psConnected = Boolean(data.photoshop && data.photoshop.connected);
         setStatus(true, psConnected ? "已连接 · 中继在线" : "已连接 · 等 PS 通道");
         log(`连接成功：${relay.url}`);
+        console.log("[ps-node] connected: " + relay.url);
         void startPolling();
     } catch (error) {
         setStatus(false, "连接失败");
         log(`连接失败：${messageOf(error)}`);
+        console.log("[ps-node] connect failed: " + messageOf(error));
+        // 中继可能比 PS 晚启动，失败时自动重试
+        setTimeout(() => {
+            if (!polling) void connect();
+        }, 3000);
     }
 }
 
@@ -305,7 +318,12 @@ async function handle(command, payload) {
     try {
         if (command === "ping") return { ok: true, data: { pong: true } };
         if (command === "docs") {
-            const docs = app.documents.map((doc) => ({ name: doc.name, width: doc.width, height: doc.height }));
+            const docs = app.documents.map((doc) => ({
+                name: doc.name,
+                width: doc.width,
+                height: doc.height,
+                layers: doc.layers ? doc.layers.map((layer) => layer.name) : [],
+            }));
             return { ok: true, data: { docs } };
         }
         if (command === "push") {
@@ -348,11 +366,22 @@ entrypoints.setup({
     },
 });
 
-document.addEventListener("DOMContentLoaded", () => {
+function boot() {
     loadRelay();
     setStatus(false, "未连接");
     const connectButton = el("connect");
     if (connectButton) connectButton.addEventListener("click", () => void connect());
     const docsButton = el("docs");
     if (docsButton) docsButton.addEventListener("click", () => void showDocs());
-});
+    // 中继允许「无 Origin」的本机客户端免 token 连接（PS 侧就是这种），所以启动即自动连。
+    setTimeout(() => {
+        if (!polling) void connect();
+    }, 300);
+}
+
+// 面板 HTML 可能已经解析完（UXP 里 DOMContentLoaded 不一定还能等到），两种时机都兜住。
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+} else {
+    boot();
+}

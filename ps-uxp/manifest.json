@@ -3,8 +3,8 @@
     "name": "PS 节点",
     "version": "0.1.0",
     "main": "index.html",
-    "manifestVersion": 5,
-    "host": [{ "app": "PS", "minVersion": "24.0.0" }],
+    "manifestVersion": 6,
+    "host": { "app": "PS", "minVersion": "23.0.0" },
     "entrypoints": [
         {
             "type": "panel",
@@ -13,7 +13,16 @@
             "minimumSize": { "width": 280, "height": 360 },
             "maximumSize": { "width": 1200, "height": 1600 },
             "preferredDockedSize": { "width": 320, "height": 560 },
-            "preferredFloatingSize": { "width": 340, "height": 600 }
+            "preferredFloatingSize": { "width": 340, "height": 600 },
+            "icons": [
+                {
+                    "width": 23,
+                    "height": 23,
+                    "path": "icons/dark.png",
+                    "scale": [1, 2],
+                    "theme": ["darkest", "dark", "medium", "lightest", "light", "all"]
+                }
+            ]
         }
     ],
     "requiredPermissions": {

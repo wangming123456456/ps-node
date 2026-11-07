@@ -2,32 +2,37 @@
 
 Photoshop 侧的 UXP 面板：连接宿主内置中继，接收画布发来的命令。
 
-## 权限
+## 已在真机验证（PS 25.0.0.37 / Windows 11）
 
-`manifest.json` 里只申请了必要的两项：
+- `docs`：列出打开的文档、尺寸、图层名。
+- `push`（`newDoc`）：base64 PNG → 临时文件 → `batchPlay open` → 新文档。
+- `push`（`layer`）：`batchPlay placeEvent`（session token）→ 新智能对象图层 → 改名为指定图层名；不改动既有图层。
+- `pull`：副本上 CMYK→RGB、16→8 位、`flatten`、按 `maxEdge` 缩放、`saveAs.png`，最后 `closeWithoutSaving`；**原文档不被弄脏**。
+- 错误路径：文档不存在时返回中文错误，PS 不弹错误框。
 
-- `network.domains: ["http://localhost/"]`：访问本机中继。**用 `localhost` 而不是 `127.0.0.1`**——Adobe 论坛实测 IP 形式会被权限拒绝，端口不用写进域名。
-- `localFileSystem: "request"`：后续 `push`/`pull` 需要写临时 PNG、读导出结果。
+## 安装（当前阶段）
 
-## 开发加载
+UXP Developer Tool 不是必须的：PS 会自动加载
+`%APPDATA%\Adobe\UXP\Plugins\External\<任意名>_PS\` 下的插件。
 
-1. 安装 Adobe **UXP Developer Tool**（本机还没装）。
-2. 打开 PS → UXP Developer Tool → Add Plugin → 选本目录的 `manifest.json` → Load。
-3. 面板出现在「增效工具」或窗口菜单里；填中继地址和 token 后点「连接」。
+1. 把本目录内容拷到 `%APPDATA%\Adobe\UXP\Plugins\External\psnode_PS\`。
+2. 重启 Photoshop。
+3. 打开一次面板：菜单「增效工具 → PS 节点」。**UXP 插件的主脚本要等面板第一次打开才执行**，之后会自动连中继（默认 `http://localhost:23310`，中继允许本机 PS 免 token）。
 
-> 如果 UDT 报缺少图标，再补 `icons/` 并在 manifest 的 entrypoint 里加 `icons` 字段；当前版本先不阻塞开发。
+对外分发时再打包成 `.ccx` 并做 Adobe 签名。
+
+## manifest 约束（实测）
+
+- 必须 `manifestVersion: 6`，`host` 是对象：`{ "app": "PS", "minVersion": "23.0.0" }`（v5 + 数组形式会被拒：`Expected the host attribute to be an object`）。
+- panel entrypoint 需要带 `icons`。
+- `requiredPermissions.network.domains: ["http://localhost/"]` 就够用（端口不写进 domains）；用 `127.0.0.1` 会被权限拒绝。
+- 中文名/文案要求 manifest 是 UTF-8，用 ASCII 写入会把「PS 节点」变成「PS ???」。
+
+## 中继配对
+
+PS 侧请求不带 `Origin`，中继对 `/api/next`、`POST /api/result` 只要求「无 Origin 且来自本机」，因此 PS 面板不用填 token 就能连。画布侧仍然要 token + Origin 白名单。
 
 ## 现状
 
-已实现：连接中继、长轮询收命令、错误回填、`docs`、`push`（`newDoc` 新建文档 / `layer` 贴成智能对象图层）、`pull`（副本上 flatten + 按 `maxEdge` 缩放 + `saveAs.png`，最后 `closeWithoutSaving`，不弄脏用户文档）。
-
-**还没在真机跑过**（本机未装 UXP Developer Tool）。第一次加载后按这个顺序验：
-
-1. 面板「连接」→ 应显示「已连接 · 中继在线」。
-2. 「读取文档」→ 列出当前 PS 里打开的文档（验证 `app.documents`）。
-3. 画布侧点「从 PS 取回」→ PS 里出现短暂副本后关闭，画布节点显示导出图（验证 duplicate/flatten/saveAs/close）。
-4. 画布侧点「推送到 PS」→ 当前文档顶部出现新智能对象图层，名字是 `AI 优化 HH:mm`（验证 placeEvent + session token）。
-5. 换成 CMYK / 16 位文档再取回一次，确认能导出（必要时先 `changeMode(RGB)` + `bitsPerChannel = EIGHT`）。
-6. 大图（2048 边长）测一次耗时和 base64 体积。
-
-已知风险点：`batchPlay` 的 `open` / `placeEvent` 用 session token 的形式、`resizeImage` 的尺寸语义、`saveAs.png` 在 CMYK 文档上的表现——这几处最可能需要按真机报错微调。
+- 已完成并实测：连接、长轮询、`docs` / `push` / `pull`、错误回填。
+- 待做：面板里的「连接/读取文档」按钮体验（目前连接是自动的）、图层选择 UI、多文档切换。

@@ -18,7 +18,7 @@
 ## 中继协议（草案 v0.1）
 
 - 地址：`http://localhost:23310`（端口固定，冲突时改常量）
-- 鉴权：除 `/api/health` 外，请求头必须带 `X-Relay-Token`
+- 鉴权：除 `/api/health` 外，请求头必须带 `X-Relay-Token`；例外是 PS 侧端点（`GET /api/next`、`POST /api/result`）——UXP 请求不带 Origin，中继对「无 Origin 的本机请求」放行，这样 PS 面板不用手填 token。画布侧端点仍然要 token + Origin 白名单。
 - 编码：JSON；图片统一 `data:image/png;base64,...`
 
 ### 端点
@@ -56,14 +56,21 @@ window.__RUNTIME_CONFIG__.psRelay = { url: "http://localhost:23310", token: "...
 
 ## 待验证清单（真机）
 
-- [x] 中继协议（画布投递/PS 领取/结果回填/长轮询唤醒/超时 204/鉴权/Origin 白名单）——用 Node 自测脚本跑过，全通过
-- [ ] UXP `manifest.json` 的 `requiredPermissions.network.domains` 用 `http://localhost/` 能放行中继（端口不写进 domains）
-- [ ] UXP fetch 对 `http://localhost:23310` 的超时/中断行为（`AbortController`）
-- [ ] PS 25.0 上 `batchPlay` 的 `placeEvent` 用 session token 放置 PNG（写临时文件 → `createSessionToken` → `_path`）
-- [ ] 导出整幅：副本 + flatten + resize + `saveAs.png`，且不弄脏用户文档
-- [ ] 大图（2048 边长）base64 在 UXP ↔ 中继 ↔ 画布之间往返的体积与耗时
-- [ ] 中继进程与 PS 断开后的重连（长轮询超时 + 退避）
-- [ ] 宿主打包后中继仍可用（产物在 `electron/` 内，不需要额外依赖）
+- [x] 中继协议（画布投递/PS 领取/结果回填/长轮询唤醒/超时 204/鉴权/Origin 白名单）——Node 自测脚本 11 项全过
+- [x] UXP manifest 用 `http://localhost/` 能放行中继（端口不写进 domains；用 `127.0.0.1` 会被拒），但需要 `manifestVersion: 6` + `host` 对象 + entrypoint `icons`
+- [x] PS 25.0 上 `batchPlay placeEvent` / `open` 用 session token 放置本地 PNG
+- [x] 导出整幅：副本 + flatten + resize + `saveAs.png`，不弄脏原文档（实测原文档保持未修改）
+- [x] 大图往返体积/耗时（256px 测试图：pull 6KB；更大尺寸待压测）
+- [x] 中继进程与 PS 断开后的重连（长轮询超时 + 3s 退避重连）
+- [ ] 宿主打包后中继仍可用（产物在 `electron/` 内，不需要额外依赖；Electron 41 打包待验）
+- [ ] 画布侧插件在宿主里安装并联动 PS（画布需要本地 Agent 进程才能打开项目，联调时被此阻塞）
+
+### 联调时踩到的环境事实
+
+- UXP 插件主脚本要等面板**第一次被打开**才执行；打开后会自动连中继。
+- PS 是单实例：再次启动会立即退出（exit 1），不要把它当成启动失败。
+- 本机 DSH 沙箱不允许子进程写工作区以外的目录，Electron 必须 `--user-data-dir` 指到工作区内（且路径含空格要显式加引号）。
+- 宿主 `vite build` 默认配置在本机会在 esbuild 临时文件删除处报 `Access is denied`；用 `--target esnext --minify false` 可绕过（仅联调用）。
 
 ## 分发
 
