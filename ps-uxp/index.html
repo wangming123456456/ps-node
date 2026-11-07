@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="zh-CN">
+    <head>
+        <meta charset="UTF-8" />
+        <title>PS 节点</title>
+        <style>
+            :root {
+                color-scheme: dark;
+            }
+            html,
+            body {
+                margin: 0;
+                height: 100%;
+                font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+                font-size: 12px;
+                background: #232323;
+                color: #d8d8d8;
+            }
+            .app {
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+                padding: 12px;
+                box-sizing: border-box;
+            }
+            .row {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            }
+            .dot {
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                background: #f87171;
+            }
+            .dot.on {
+                background: #4ade80;
+            }
+            label {
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+                color: #9a9a9a;
+            }
+            input {
+                padding: 6px 8px;
+                border-radius: 6px;
+                border: 1px solid #4a4a4a;
+                background: #1e1e1e;
+                color: #d8d8d8;
+                font-size: 12px;
+            }
+            button {
+                padding: 5px 10px;
+                border-radius: 6px;
+                border: 1px solid #4a4a4a;
+                background: transparent;
+                color: #d8d8d8;
+                font-size: 12px;
+                cursor: pointer;
+            }
+            #log {
+                margin: 0;
+                padding: 8px;
+                min-height: 140px;
+                max-height: 320px;
+                overflow: auto;
+                border-radius: 6px;
+                border: 1px solid #3a3a3a;
+                background: #1b1b1b;
+                color: #b4b4b4;
+                font-size: 11px;
+                line-height: 1.5;
+                white-space: pre-wrap;
+            }
+            .hint {
+                color: #8a8a8a;
+                font-size: 11px;
+                line-height: 1.5;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="app">
+            <div class="row">
+                <span id="dot" class="dot"></span>
+                <span id="status">未连接</span>
+            </div>
+
+            <label>
+                中继地址
+                <input id="url" type="text" placeholder="http://localhost:23310" />
+            </label>
+            <label>
+                Token
+                <input id="token" type="text" placeholder="从画布 PS 节点面板复制" />
+            </label>
+
+            <div class="row">
+                <button id="connect" type="button">连接</button>
+                <button id="docs" type="button">读取文档</button>
+            </div>
+
+            <pre id="log"></pre>
+            <div class="hint">先启动宿主（AIGC 画布）并启用中继，再把画布节点面板里的 token 填到这里。</div>
+        </div>
+        <script src="main.js"></script>
+    </body>
+</html>

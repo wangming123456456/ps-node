@@ -1,0 +1,23 @@
+{
+    "id": "com.wangming.psnode",
+    "name": "PS 节点",
+    "version": "0.1.0",
+    "main": "index.html",
+    "manifestVersion": 5,
+    "host": [{ "app": "PS", "minVersion": "24.0.0" }],
+    "entrypoints": [
+        {
+            "type": "panel",
+            "id": "psNodePanel",
+            "label": { "default": "PS 节点" },
+            "minimumSize": { "width": 280, "height": 360 },
+            "maximumSize": { "width": 1200, "height": 1600 },
+            "preferredDockedSize": { "width": 320, "height": 560 },
+            "preferredFloatingSize": { "width": 340, "height": 600 }
+        }
+    ],
+    "requiredPermissions": {
+        "network": { "domains": ["http://localhost/"] },
+        "localFileSystem": "request"
+    }
+}

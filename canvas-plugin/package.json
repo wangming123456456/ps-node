@@ -1,0 +1,18 @@
+{
+    "name": "canvas-plugin-ps",
+    "version": "0.1.0",
+    "private": true,
+    "type": "module",
+    "description": "PS 节点：把画布的图推进 Photoshop，改完再取回",
+    "scripts": {
+        "build": "node build.mjs",
+        "dev": "node build.mjs --watch",
+        "typecheck": "tsc --noEmit"
+    },
+    "devDependencies": {
+        "@infinite-canvas/plugin-sdk": "file:./sdk",
+        "@types/react": "19.1.12",
+        "esbuild": "^0.25.0",
+        "typescript": "^5"
+    }
+}
