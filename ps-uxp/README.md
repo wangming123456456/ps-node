@@ -19,11 +19,15 @@ Photoshop 侧的 UXP 面板：连接宿主内置中继，接收画布发来的�
 
 ## 现状
 
-已实现：连接中继、长轮询收命令、`docs`（列出文档）、错误回填。
+已实现：连接中继、长轮询收命令、错误回填、`docs`、`push`（`newDoc` 新建文档 / `layer` 贴成智能对象图层）、`pull`（副本上 flatten + 按 `maxEdge` 缩放 + `saveAs.png`，最后 `closeWithoutSaving`，不弄脏用户文档）。
 
-未实现（下一步）：
+**还没在真机跑过**（本机未装 UXP Developer Tool）。第一次加载后按这个顺序验：
 
-- `push`：base64 → 临时 PNG → `fs.createSessionToken` → `batchPlay` 的 `placeEvent` → 把新图层改名；只新增图层，不碰既有图层。
-- `pull`：复制文档 → `flatten` → 按 `maxEdge` `resizeImage` → `saveAs.png` → 读回字节 → base64；最后 `close(SaveOptions.DONOTSAVECHANGES)`，不弄脏用户文档。
-- 以上 PS 修改都要包在 `core.executeAsModal` 里，并设置 `app.displayDialogs = DialogModes.NO` 再还原。
-- 大图（2048 边长）的 base64 体积与耗时要在真机压测。
+1. 面板「连接」→ 应显示「已连接 · 中继在线」。
+2. 「读取文档」→ 列出当前 PS 里打开的文档（验证 `app.documents`）。
+3. 画布侧点「从 PS 取回」→ PS 里出现短暂副本后关闭，画布节点显示导出图（验证 duplicate/flatten/saveAs/close）。
+4. 画布侧点「推送到 PS」→ 当前文档顶部出现新智能对象图层，名字是 `AI 优化 HH:mm`（验证 placeEvent + session token）。
+5. 换成 CMYK / 16 位文档再取回一次，确认能导出（必要时先 `changeMode(RGB)` + `bitsPerChannel = EIGHT`）。
+6. 大图（2048 边长）测一次耗时和 base64 体积。
+
+已知风险点：`batchPlay` 的 `open` / `placeEvent` 用 session token 的形式、`resizeImage` 的尺寸语义、`saveAs.png` 在 CMYK 文档上的表现——这几处最可能需要按真机报错微调。

@@ -56,6 +56,7 @@ window.__RUNTIME_CONFIG__.psRelay = { url: "http://localhost:23310", token: "...
 
 ## 待验证清单（真机）
 
+- [x] 中继协议（画布投递/PS 领取/结果回填/长轮询唤醒/超时 204/鉴权/Origin 白名单）——用 Node 自测脚本跑过，全通过
 - [ ] UXP `manifest.json` 的 `requiredPermissions.network.domains` 用 `http://localhost/` 能放行中继（端口不写进 domains）
 - [ ] UXP fetch 对 `http://localhost:23310` 的超时/中断行为（`AbortController`）
 - [ ] PS 25.0 上 `batchPlay` 的 `placeEvent` 用 session token 放置 PNG（写临时文件 → `createSessionToken` → `_path`）
