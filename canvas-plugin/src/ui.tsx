@@ -106,13 +106,7 @@ export function NodeContent({ ctx }: CanvasNodeContentProps) {
     useEffect(() => startPsRequestWorker(() => ctxRef.current), []);
 
     return (
-        <div
-            className="ps-root ps-node"
-            data-canvas-no-zoom
-            onMouseDown={(event) => event.stopPropagation()}
-            onWheel={(event) => event.stopPropagation()}
-            style={themeVars(ctx.theme)}
-        >
+        <div className="ps-root ps-node" style={themeVars(ctx.theme)}>
             {content ? (
                 <img className="ps-node__image" src={content} alt="" draggable={false} />
             ) : (
