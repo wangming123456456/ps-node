@@ -10,9 +10,15 @@ type GenPayload = {
     model?: string;
     reference?: string;
     doc?: string;
+    image?: string;
 };
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function readMeta(ctx: CanvasNodeContext, key: string): string {
+    const value = ctx.node.metadata?.[key];
+    return typeof value === "string" ? value : "";
+}
 
 function errorText(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
@@ -31,6 +37,24 @@ async function handleJob(ctx: CanvasNodeContext, job: PsJob): Promise<{ ok: bool
                     defaultModel: ctx.ai.defaultModel("image"),
                 },
             };
+        }
+
+        if (job.command === "latest") {
+            const content = readMeta(ctx, "content");
+            return { ok: true, data: { image: content, doc: readPsDoc(ctx) } };
+        }
+
+        if (job.command === "sync") {
+            const image = typeof payload.image === "string" ? payload.image : "";
+            if (!image) return { ok: false, error: "缺少图片数据" };
+            ctx.updateMetadata({
+                content: image,
+                psStatus: "inPS",
+                psDoc: typeof payload.doc === "string" && payload.doc ? payload.doc : readPsDoc(ctx),
+                psStartedAt: Date.now(),
+                psError: "",
+            });
+            return { ok: true, data: { synced: true } };
         }
 
         if (job.command === "generate") {

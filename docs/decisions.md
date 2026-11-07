@@ -51,6 +51,8 @@
 |---|---|---|
 | `models` | `{}` | `{ models: [{ value, label }], defaultModel }` |
 | `generate` | `{ prompt, model?, reference?, doc?, selection? }` | `{ image }` |
+| `latest` | `{}` | `{ image, doc }`（PS 面板「从画布接收」用） |
+| `sync` | `{ image, doc }` | `{ synced: true }`（PS 面板「发送到画布」用） |
 
 - 参考图与选区：`reference` 是 base64 图；`selection` 存在时 PS 侧会把参考图裁成选区范围，结果按选区框缩放贴回。
 

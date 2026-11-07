@@ -179,6 +179,40 @@
                 display: flex;
             }
 
+            .shot {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                padding: 10px;
+                border: 1px solid var(--stroke);
+                border-radius: 8px;
+            }
+
+            .shot__title {
+                font-size: 13px;
+                font-weight: 600;
+            }
+
+            .shot__box {
+                position: relative;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                min-height: 120px;
+                max-height: 220px;
+                overflow: hidden;
+                border-radius: 6px;
+                border: 1px solid var(--stroke);
+                background: var(--panel);
+            }
+
+            .shot__img {
+                max-width: 100%;
+                max-height: 220px;
+                object-fit: contain;
+                display: block;
+            }
+
             .gen {
                 display: flex;
                 flex-direction: column;
@@ -328,6 +362,22 @@
                 <div class="row row--between">
                     <span id="doc-state" class="muted">等待连接…</span>
                     <button id="refresh" type="button" class="textbtn">刷新</button>
+                </div>
+            </div>
+
+            <div class="shot">
+                <div class="row row--between">
+                    <span class="shot__title">画面</span>
+                    <button id="shot-refresh" type="button" class="textbtn">刷新预览</button>
+                </div>
+                <div class="shot__box">
+                    <img id="shot-image" class="shot__img" alt="" hidden />
+                    <span id="shot-empty" class="muted">没有打开的文档</span>
+                </div>
+                <div class="row">
+                    <button id="send-canvas" type="button" class="primary">发送到画布</button>
+                    <span class="spacer"></span>
+                    <button id="recv-canvas" type="button" class="ghost">从画布接收</button>
                 </div>
             </div>
 

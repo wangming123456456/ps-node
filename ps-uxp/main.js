@@ -416,6 +416,7 @@ async function connect() {
         console.log("[ps-node] connected: " + relay.url);
         refreshDocumentInfo();
         void refreshModels();
+        void refreshShot();
         void startPolling();
     } catch (error) {
         setStatus("error", "连接失败");
@@ -510,12 +511,90 @@ function refreshDocumentInfo() {
         const layerCount = doc.layers ? doc.layers.length : 0;
         const selection = readSelectionBounds();
         meta = `${doc.width}×${doc.height} · ${layerCount} 个图层` + (selection ? ` · 选区 ${selection.right - selection.left}×${selection.bottom - selection.top}` : "");
+        const signature = `${name}|${layerCount}`;
+        if (signature !== lastDocSignature) {
+            lastDocSignature = signature;
+            void refreshShot();
+        }
     } catch (error) {
         // 没有打开的文档
     }
     if (nameNode) nameNode.textContent = name;
     if (metaNode) metaNode.textContent = meta;
     if (stateNode) stateNode.textContent = relayConnected ? "中继已连接" : "中继未连接";
+}
+
+// ---------------------------------------------------------------------------
+// 画面预览 / 与画布同步
+// ---------------------------------------------------------------------------
+
+let shotBusy = false;
+let lastDocSignature = "";
+
+/** 重新渲染当前文档缩略图（小尺寸导出，不影响原文档）。 */
+async function refreshShot() {
+    const image = el("shot-image");
+    const empty = el("shot-empty");
+    if (!image || !empty) return;
+    try {
+        const doc = app.activeDocument;
+        if (!doc) {
+            image.hidden = true;
+            empty.hidden = false;
+            empty.textContent = "没有打开的文档";
+            return;
+        }
+        const shot = await exportMergedImage({ maxEdge: 512 });
+        image.src = shot.image;
+        image.hidden = false;
+        empty.hidden = true;
+    } catch (error) {
+        image.hidden = true;
+        empty.hidden = false;
+        empty.textContent = `预览失败：${messageOf(error)}`;
+    }
+}
+
+async function sendCurrentToCanvas() {
+    if (shotBusy) return;
+    shotBusy = true;
+    setStatus("ok", "发送到画布…");
+    try {
+        const doc = app.activeDocument;
+        if (!doc) throw new Error("PS 里没有打开的文档");
+        const exported = await exportMergedImage({ maxEdge: 2048 });
+        await requestCanvas("sync", { image: exported.image, doc: doc.name }, 60000);
+        log("当前画面已发送到画布");
+        setStatus("ok", "已发送到画布");
+    } catch (error) {
+        log(`发送到画布失败：${messageOf(error)}`);
+        setStatus("error", "发送失败");
+    } finally {
+        shotBusy = false;
+        void refreshShot();
+    }
+}
+
+async function receiveFromCanvas() {
+    if (shotBusy) return;
+    shotBusy = true;
+    setStatus("ok", "从画布接收…");
+    try {
+        const data = await requestCanvas("latest", {}, 60000);
+        if (!data || !data.image) throw new Error("画布上没有可接收的图（先取回或推送一次）");
+        const time = new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false });
+        const doc = currentDocName();
+        const result = doc ? await placeImageAsLayer(data.image, doc, `画布 ${time}`) : await openImageAsNewDocument(data.image);
+        log(`已从画布接收：${result.layer || result.doc}`);
+        setStatus("ok", "已从画布接收");
+        refreshDocumentInfo();
+    } catch (error) {
+        log(`从画布接收失败：${messageOf(error)}`);
+        setStatus("error", "接收失败");
+    } finally {
+        shotBusy = false;
+        void refreshShot();
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -663,7 +742,7 @@ async function applyRender() {
     setGenBusy(true);
     setGenState("正在添加到图层…");
     try {
-        const time = new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
+        const time = new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false });
         if (lastRenderSelection) {
             const data = await placeImageInSelection(lastRender, lastRenderSelection, `AI 选区 ${time}`);
             setGenState(`已贴回选区：${data.layer}`);
@@ -711,6 +790,12 @@ function boot() {
     if (renderButton) renderButton.addEventListener("click", () => void renderImage());
     const genApplyButton = el("gen-apply");
     if (genApplyButton) genApplyButton.addEventListener("click", () => void applyRender());
+    const shotRefresh = el("shot-refresh");
+    if (shotRefresh) shotRefresh.addEventListener("click", () => void refreshShot());
+    const sendCanvas = el("send-canvas");
+    if (sendCanvas) sendCanvas.addEventListener("click", () => void sendCurrentToCanvas());
+    const recvCanvas = el("recv-canvas");
+    if (recvCanvas) recvCanvas.addEventListener("click", () => void receiveFromCanvas());
     const logToggle = el("log-toggle");
     if (logToggle) logToggle.addEventListener("click", () => el("log-section").classList.toggle("open"));
     const relayToggle = el("relay-toggle");
