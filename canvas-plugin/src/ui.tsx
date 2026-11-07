@@ -1,8 +1,9 @@
 import type { CSSProperties } from "react";
-import { useCallback, useEffect, useState } from "@infinite-canvas/plugin-sdk";
+import { useCallback, useEffect, useRef, useState } from "@infinite-canvas/plugin-sdk";
 import type { CanvasNodeContentProps, CanvasNodeContext, CanvasNodePanelProps, CanvasNodeToolbarItem, CanvasTheme } from "@infinite-canvas/plugin-sdk";
 
 import { checkHealth, loadSettings, optimizeInPs, pullFromPs, pushToPs, readError, readStatus, refreshDocs, saveSettings, type PsDoc, type PsSettings } from "./actions";
+import { startPsRequestWorker } from "./ps-requests";
 
 const STATUS_LABELS: Record<string, string> = {
     idle: "未连接",
@@ -100,6 +101,11 @@ export function NodeContent({ ctx }: CanvasNodeContentProps) {
     const meta = [readMeta(ctx, "psDoc"), readMeta(ctx, "psLayer")].filter(Boolean).join(" · ");
     const running = RUNNING_STATUSES.has(status);
     const elapsed = useElapsed(ctx, running);
+
+    // PS 面板发来的生成/模型列表请求由这个节点处理（多节点时谁领取谁处理）。
+    const ctxRef = useRef<CanvasNodeContext | null>(ctx);
+    ctxRef.current = ctx;
+    useEffect(() => startPsRequestWorker(() => ctxRef.current), []);
 
     return (
         <div

@@ -285,6 +285,7 @@ async function connect() {
         log(`连接成功：${relay.url}`);
         console.log("[ps-node] connected: " + relay.url);
         refreshDocumentInfo();
+        void refreshModels();
         void startPolling();
     } catch (error) {
         setStatus("error", "连接失败");
@@ -308,6 +309,7 @@ async function startPolling() {
     while (polling) {
         try {
             const response = await request(`/api/next?timeout=${POLL_TIMEOUT_MS}`);
+            if (!relayConnected) setStatus("ok", "已连接");
             if (response.status === 204) continue;
             if (!response.ok) throw new Error(`中继返回 ${response.status}`);
             const job = await response.json();
@@ -373,6 +375,146 @@ function refreshDocumentInfo() {
 }
 
 // ---------------------------------------------------------------------------
+// 生成（请求画布宿主 AI 执行）
+// ---------------------------------------------------------------------------
+
+let lastRender = null;
+let modelsLoaded = false;
+let genBusy = false;
+
+function currentDocName() {
+    try {
+        return app.activeDocument ? app.activeDocument.name : "";
+    } catch (error) {
+        return "";
+    }
+}
+
+function setGenState(text, isError) {
+    const node = el("gen-state");
+    if (!node) return;
+    node.textContent = text;
+    node.className = isError ? "muted gen__state error" : "muted gen__state";
+}
+
+function setGenBusy(busy) {
+    genBusy = busy;
+    const renderButton = el("render");
+    if (renderButton) renderButton.disabled = busy;
+    const genApplyButton = el("gen-apply");
+    if (genApplyButton) genApplyButton.disabled = busy || !lastRender;
+}
+
+/** 向画布发一条请求并等结果（generate / models）。 */
+async function requestCanvas(command, payload, timeoutMs) {
+    const submitted = await request("/api/ps/request", { method: "POST", body: JSON.stringify({ command, payload }) });
+    if (!submitted.ok) throw new Error(`中继返回 ${submitted.status}`);
+    const submittedBody = await submitted.json();
+    const id = submittedBody.id;
+    const deadline = Date.now() + (timeoutMs || 900000);
+    while (Date.now() < deadline) {
+        const polled = await request(`/api/ps/result?id=${encodeURIComponent(id)}&timeout=${POLL_TIMEOUT_MS}`);
+        if (polled.status === 204) continue;
+        if (!polled.ok) throw new Error(`中继返回 ${polled.status}`);
+        const result = await polled.json();
+        if (!result.ok) throw new Error(result.error || "画布返回失败");
+        return result.data;
+    }
+    throw new Error("等待画布响应超时");
+}
+
+async function refreshModels() {
+    const select = el("model-select");
+    if (!select) return;
+    try {
+        const data = await requestCanvas("models", {}, 10000);
+        const models = data && Array.isArray(data.models) ? data.models : [];
+        const current = select.value;
+        select.innerHTML = "";
+        const fallback = document.createElement("option");
+        fallback.value = "";
+        fallback.textContent = models.length ? "默认模型" : "画布未配置模型";
+        select.appendChild(fallback);
+        models.forEach((model) => {
+            const option = document.createElement("option");
+            option.value = model.value;
+            option.textContent = model.label || model.value;
+            select.appendChild(option);
+        });
+        if (current && models.some((model) => model.value === current)) select.value = current;
+        modelsLoaded = models.length > 0;
+        setGenState(models.length ? "就绪" : "画布未配置模型", models.length === 0);
+    } catch (error) {
+        modelsLoaded = false;
+        setGenState(`模型列表获取失败：${messageOf(error)}`, true);
+    }
+}
+
+async function renderImage() {
+    const promptNode = el("prompt");
+    const prompt = promptNode ? String(promptNode.value || "").trim() : "";
+    if (!prompt) {
+        setGenState("先填提示词", true);
+        return;
+    }
+    if (genBusy) return;
+    setGenBusy(true);
+    setGenState("渲染中…");
+    log("开始渲染…");
+    try {
+        let reference;
+        const refToggle = el("ref-toggle");
+        if (refToggle && refToggle.checked) {
+            try {
+                const pulled = await exportMergedImage({ maxEdge: 1024 });
+                reference = pulled.image;
+            } catch (error) {
+                log(`参考图获取失败，改纯文生图：${messageOf(error)}`);
+            }
+        }
+        const modelNode = el("model-select");
+        const data = await requestCanvas("generate", {
+            prompt,
+            model: modelNode ? modelNode.value : "",
+            reference,
+            doc: currentDocName(),
+        });
+        if (!data || !data.image) throw new Error("画布没有返回图片");
+        lastRender = data.image;
+        const preview = el("preview");
+        if (preview) {
+            preview.src = lastRender;
+            preview.hidden = false;
+        }
+        setGenState("渲染完成");
+        log("渲染完成");
+    } catch (error) {
+        setGenState(messageOf(error), true);
+        log(`渲染失败：${messageOf(error)}`);
+    } finally {
+        setGenBusy(false);
+    }
+}
+
+async function applyRender() {
+    if (!lastRender || genBusy) return;
+    setGenBusy(true);
+    setGenState("正在添加到图层…");
+    try {
+        const time = new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
+        const data = await placeImageAsLayer(lastRender, currentDocName(), `AI 生成 ${time}`);
+        setGenState(`已添加到图层：${data.layer}`);
+        log(`已添加到图层：${data.layer}`);
+        refreshDocumentInfo();
+    } catch (error) {
+        setGenState(messageOf(error), true);
+        log(`添加到图层失败：${messageOf(error)}`);
+    } finally {
+        setGenBusy(false);
+    }
+}
+
+// ---------------------------------------------------------------------------
 // 面板
 // ---------------------------------------------------------------------------
 
@@ -381,6 +523,7 @@ entrypoints.setup({
         psNodePanel: {
             show() {
                 loadRelay();
+                if (relayConnected) void refreshModels();
             },
         },
     },
@@ -396,6 +539,10 @@ function boot() {
     if (applyButton) applyButton.addEventListener("click", () => void connect());
     const refreshButton = el("refresh");
     if (refreshButton) refreshButton.addEventListener("click", () => refreshDocumentInfo());
+    const renderButton = el("render");
+    if (renderButton) renderButton.addEventListener("click", () => void renderImage());
+    const genApplyButton = el("gen-apply");
+    if (genApplyButton) genApplyButton.addEventListener("click", () => void applyRender());
     const logToggle = el("log-toggle");
     if (logToggle) logToggle.addEventListener("click", () => el("log-section").classList.toggle("open"));
     const relayToggle = el("relay-toggle");

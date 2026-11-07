@@ -62,3 +62,31 @@ export async function runCommand<T>(endpoint: RelayEndpoint, command: string, pa
     }
     throw new Error("等待 PS 响应超时");
 }
+
+// ---------------------------------------------------------------------------
+// 反向通道：PS 向画布发起请求（生成 / 模型列表）
+// ---------------------------------------------------------------------------
+
+export type PsJob = { id: string; command: string; payload: Record<string, unknown> | null };
+
+/** 画布侧长轮询领取 PS 发来的请求；超时返回 null。 */
+export async function nextPsJob(endpoint: RelayEndpoint, signal?: AbortSignal, timeoutMs = 25_000): Promise<PsJob | null> {
+    const response = await fetch(`${endpoint.baseUrl}/api/ps/next?timeout=${timeoutMs}`, {
+        cache: "no-store",
+        headers: { "x-relay-token": endpoint.token },
+        signal,
+    });
+    if (response.status === 204) return null;
+    if (!response.ok) throw new Error(`中继返回 ${response.status}`);
+    return (await response.json()) as PsJob;
+}
+
+/** 把 PS 请求的结果回填给中继。 */
+export async function completePsJob(endpoint: RelayEndpoint, id: string, result: { ok: boolean; data?: unknown; error?: string }): Promise<void> {
+    const response = await fetch(`${endpoint.baseUrl}/api/ps/result`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-relay-token": endpoint.token },
+        body: JSON.stringify({ id, ...result }),
+    });
+    if (!response.ok) throw new Error(`回填请求结果失败（${response.status}）`);
+}

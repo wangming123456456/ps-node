@@ -179,6 +179,104 @@
                 display: flex;
             }
 
+            .gen {
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                padding: 10px;
+                border: 1px solid var(--stroke);
+                border-radius: 8px;
+            }
+
+            .gen__title {
+                font-size: 13px;
+                font-weight: 600;
+            }
+
+            .check {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                color: var(--muted);
+                font-size: 11px;
+                cursor: pointer;
+            }
+
+            .textarea {
+                width: 100%;
+                box-sizing: border-box;
+                min-height: 64px;
+                resize: vertical;
+                padding: 8px;
+                border: 1px solid var(--stroke);
+                border-radius: 6px;
+                background: transparent;
+                color: var(--text);
+                font: inherit;
+                font-size: 12px;
+                line-height: 1.6;
+            }
+
+            .textarea:focus,
+            .input:focus {
+                outline: none;
+                border-color: var(--muted);
+            }
+
+            .primary {
+                appearance: none;
+                border: 0;
+                border-radius: 6px;
+                background: var(--text);
+                color: var(--panel);
+                font: inherit;
+                font-size: 12px;
+                font-weight: 600;
+                padding: 6px 14px;
+                cursor: pointer;
+                white-space: nowrap;
+            }
+
+            .primary:hover:not(:disabled) {
+                opacity: 0.88;
+            }
+
+            .primary:disabled,
+            .ghost:disabled {
+                opacity: 0.4;
+                cursor: not-allowed;
+            }
+
+            .ghost {
+                appearance: none;
+                border: 0;
+                border-radius: 6px;
+                background: transparent;
+                color: var(--text);
+                font: inherit;
+                font-size: 12px;
+                padding: 6px 12px;
+                cursor: pointer;
+                white-space: nowrap;
+            }
+
+            .ghost:hover:not(:disabled) {
+                background: var(--hover);
+            }
+
+            .preview {
+                width: 100%;
+                max-height: 180px;
+                object-fit: contain;
+                border-radius: 6px;
+                border: 1px solid var(--stroke);
+                box-sizing: border-box;
+            }
+
+            .gen__state.error {
+                color: #ef4444;
+            }
+
             .input {
                 height: 28px;
                 box-sizing: border-box;
@@ -230,6 +328,26 @@
                 <div class="row row--between">
                     <span id="doc-state" class="muted">等待连接…</span>
                     <button id="refresh" type="button" class="textbtn">刷新</button>
+                </div>
+            </div>
+
+            <div class="gen">
+                <div class="row row--between">
+                    <span class="gen__title">AI 生成</span>
+                    <label class="check"><input id="ref-toggle" type="checkbox" checked /><span>参考当前画面</span></label>
+                </div>
+                <select id="model-select" class="input">
+                    <option value="">默认模型</option>
+                </select>
+                <textarea id="prompt" class="textarea" placeholder="描述你想要的画面…"></textarea>
+                <div class="row row--between">
+                    <span id="gen-state" class="muted gen__state">就绪</span>
+                    <button id="render" class="primary" type="button">渲染</button>
+                </div>
+                <img id="preview" class="preview" alt="" hidden />
+                <div class="row">
+                    <span class="spacer"></span>
+                    <button id="gen-apply" class="ghost" type="button" disabled>添加到图层</button>
                 </div>
             </div>
 

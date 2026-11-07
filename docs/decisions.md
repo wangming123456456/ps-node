@@ -25,11 +25,15 @@
 
 | 端点 | 方向 | 说明 |
 |---|---|---|
-| `GET /api/health` | 任意 | `{ ok, version, photoshop: { connected, doc } }` |
-| `GET /api/next?timeout=25000` | PS → 中继 | 长轮询取一条命令；超时返回 `204` |
-| `POST /api/command` | 画布 → 中继 | 请求 `{ command, payload, timeoutMs? }`，返回 `{ id }`（命令排队） |
+| `GET /api/health` | 任意 | `{ ok, version, photoshop: { connected, doc }, canvas: { connected } }` |
+| `GET /api/next?timeout=25000` | PS → 中继 | 长轮询取画布命令；超时返回 `204` |
+| `POST /api/command` | 画布 → 中继 | 请求 `{ command, payload }`，返回 `{ id }`（命令排队） |
 | `GET /api/result?id=&timeout=25000` | 画布 → 中继 | 长轮询取命令结果；超时返回 `204` |
 | `POST /api/result` | PS → 中继 | 回填 `{ id, ok, data }` 或 `{ id, ok: false, error }` |
+| `POST /api/ps/request` | PS → 中继 | PS 向画布发起请求（生成/模型列表），返回 `{ id }` |
+| `GET /api/ps/next?timeout=25000` | 画布 → 中继 | 长轮询取 PS 请求；超时返回 `204` |
+| `POST /api/ps/result` | 画布 → 中继 | 回填 PS 请求的结果 `{ id, ok, data/error }` |
+| `GET /api/ps/result?id=&timeout=25000` | PS → 中继 | 长轮询取自己请求的结果；超时返回 `204` |
 
 ### 命令
 

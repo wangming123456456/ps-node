@@ -53,11 +53,12 @@ PS 插件：用 UXP Developer Tool 加载 `ps-uxp/` 目录。
 
 ## 当前状态
 
-阶段 1：两端真机闭环已跑通，UI 已按画布 UI 规范重塑。
+阶段 2：画布闭环 + PS 面板内生成（M1）已接通，等画布配好 AI Key 就能真出图。
 
-- 宿主中继：`aigc-studio/electron/ps-relay.cjs`（零依赖 `node:http`，`main.cjs` 启动并注入 `psRelay {url, token}`），协议自测 11 项全过；宿主 Electron 实测能自动起中继、注入配置。
-- PS UXP 插件：在 PS 25.0.0.37 上实测通过 `docs` / `push`（newDoc、layer）/ `pull`（maxEdge、不弄脏原文档）/ 错误路径；面板已改为「状态 + 文档信息 + 折叠日志/中继地址」的紧凑布局。
-- 画布插件：`build` 与 `typecheck` 通过；节点/面板按规范重做（文档下拉、maxEdge、可编辑提示词、耗时、折叠区），网页版真机联调通过；绑定文档改名/关闭会自动退回当前文档。
+- 宿主中继：`aigc-studio/electron/ps-relay.cjs`（零依赖 `node:http`），双向通道（画布↔PS），协议自测 12 项全过。
+- PS UXP 插件：`docs` / `push` / `pull` 真机通过；面板新增「AI 生成」区（模型下拉、提示词、参考当前画面、渲染预览、添加到图层），生成请求经中继交给画布宿主 `ctx.ai` 执行。
+- 画布插件：节点/面板按规范重塑；后台 worker 响应 PS 的 `generate` / `models` 请求，生成结果同时写回节点。
+- 已知阻塞：画布还没配置可用的 AI API Key，真机测试停在「AI 配置未就绪」；M2（选区局部修改）未开始。
 
 ## 文档
 
