@@ -30,8 +30,10 @@ docs/
 **画布插件**（插件市场 → 第三方插件 → 填 URL）：
 
 ```
-https://cdn.jsdelivr.net/gh/wangming123456456/ps-node@v0.1.0/dist/ps.js
+https://cdn.jsdelivr.net/gh/wangming123456456/ps-node@<tag>/dist/ps.js
 ```
+
+现在还没有打 tag；开发阶段可临时用 `@main`（jsDelivr 对 `@main` 有缓存，更新不即时，正式安装请等首个 tag）。
 
 **PS 插件**：UXP Developer Tool → Add Plugin → 选 `ps-uxp/manifest.json` → Load。分发给别人需要打包 `.ccx` 并做 Adobe 签名。
 
@@ -53,7 +55,7 @@ PS 插件：用 UXP Developer Tool 加载 `ps-uxp/` 目录。
 
 阶段 0：仓库骨架。
 
-- 已完成：目录结构、SDK 拷贝、画布插件骨架（节点 UI / 面板 / 中继客户端 / 三个动作）、UXP 面板骨架（连接与长轮询）、中继协议草案。
+- 已完成：目录结构、SDK 拷贝、画布插件骨架（节点 UI / 面板 / 中继客户端 / 三个动作）、UXP 面板骨架（连接与长轮询）、中继协议草案；画布插件 `npm run build` 与 `npm run typecheck` 均已通过，产物 `dist/ps.js` 已提交。
 - 未完成：宿主中继实现（在 aigc-studio 仓库）、两端 `push` / `pull` 的 PS 真实现、真机验证。
 
 ## 文档

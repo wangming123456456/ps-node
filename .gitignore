@@ -1,4 +1,6 @@
 node_modules/
+# 构建助手会顺带在产物目录写一份本地发现清单，这个仓库用不到
+dist/index.json
 *.log
 .DS_Store
 Thumbs.db
