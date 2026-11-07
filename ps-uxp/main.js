@@ -7,7 +7,7 @@
 // 注意：本文件还没在真机（UXP Developer Tool）里跑过，见 README「待验证」。
 
 const { entrypoints, storage } = require("uxp");
-const { app, core, action, constants } = require("photoshop");
+const { app, core, action, constants, imaging } = require("photoshop");
 
 const fs = storage.localFileSystem;
 const formats = storage.formats;
@@ -114,10 +114,11 @@ function splitDataUrl(image) {
 // ---------------------------------------------------------------------------
 
 async function writeTemporaryPng(image, prefix) {
-    const { base64 } = splitDataUrl(image);
+    const { mimeType, base64 } = splitDataUrl(image);
     const bytes = base64ToBytes(base64);
+    const extension = /jpe?g/i.test(mimeType) ? "jpg" : "png";
     const folder = await fs.getTemporaryFolder();
-    const file = await folder.createFile(`${prefix}-${Date.now()}.png`, { overwrite: true });
+    const file = await folder.createFile(`${prefix}-${Date.now()}.${extension}`, { overwrite: true });
     await file.write(bytes.buffer, { format: formats.binary });
     return file;
 }
@@ -178,10 +179,45 @@ async function openImageAsNewDocument(image) {
     return { doc: doc.name, width: doc.width, height: doc.height };
 }
 
-/** 导出整幅拼合图：副本上 flatten/缩放，不弄脏用户文档。 */
+/**
+ * 导出整幅拼合图。优先用 Imaging API 直接取像素，不复制文档——
+ * 以前「复制文档→导出→关闭」会让 PS 的文档窗口闪一下。
+ */
 async function exportMergedImage(payload) {
     const source = findDocument(payload && payload.doc);
     const maxEdge = Number(payload && payload.maxEdge) > 0 ? Number(payload.maxEdge) : 0;
+    const width = source.width;
+    const height = source.height;
+    const longest = Math.max(width, height);
+    const targetSize =
+        maxEdge > 0 && longest > maxEdge
+            ? { width: Math.max(1, Math.round((width * maxEdge) / longest)), height: Math.max(1, Math.round((height * maxEdge) / longest)) }
+            : undefined;
+    try {
+        const result = await imaging.getPixels({
+            documentID: source.id,
+            sourceBounds: { left: 0, top: 0, right: width, bottom: height },
+            ...(targetSize ? { targetSize } : {}),
+        });
+        try {
+            const base64 = await imaging.encodeImageData({ imageData: result.imageData, base64: true });
+            return {
+                image: "data:image/jpeg;base64," + base64,
+                doc: source.name,
+                width: result.imageData.width,
+                height: result.imageData.height,
+            };
+        } finally {
+            if (result.imageData && typeof result.imageData.dispose === "function") result.imageData.dispose();
+        }
+    } catch (error) {
+        log(`Imaging 导出失败，回退副本导出：${messageOf(error)}`);
+        return exportMergedViaDuplicate(source, maxEdge);
+    }
+}
+
+/** 兼容回退：副本导出（老实现，会让文档窗口闪一下）。 */
+async function exportMergedViaDuplicate(source, maxEdge) {
     const folder = await fs.getTemporaryFolder();
     const file = await folder.createFile(`ps-node-pull-${Date.now()}.png`, { overwrite: true });
     let exportedWidth = source.width;
@@ -292,8 +328,33 @@ async function resolveSelectionBounds() {
     }
 }
 
-/** 导出选区范围的参考图（副本裁切，不动原文档）。 */
+/** 导出选区范围的参考图（Imaging 直接取区域像素，不复制文档）。 */
 async function exportSelectionReference(bounds) {
+    const source = app.activeDocument;
+    const left = Math.max(0, Math.round(bounds.left));
+    const top = Math.max(0, Math.round(bounds.top));
+    const right = Math.min(source.width, Math.round(bounds.right));
+    const bottom = Math.min(source.height, Math.round(bounds.bottom));
+    if (right - left < 2 || bottom - top < 2) throw new Error("选区超出画布范围");
+    try {
+        const result = await imaging.getPixels({
+            documentID: source.id,
+            sourceBounds: { left, top, right, bottom },
+        });
+        try {
+            const base64 = await imaging.encodeImageData({ imageData: result.imageData, base64: true });
+            return { image: "data:image/jpeg;base64," + base64, width: right - left, height: bottom - top };
+        } finally {
+            if (result.imageData && typeof result.imageData.dispose === "function") result.imageData.dispose();
+        }
+    } catch (error) {
+        log(`选区 Imaging 导出失败，回退副本：${messageOf(error)}`);
+        return exportSelectionViaDuplicate(bounds);
+    }
+}
+
+/** 兼容回退：副本裁切导出（老实现，会让文档窗口闪一下）。 */
+async function exportSelectionViaDuplicate(bounds) {
     const source = app.activeDocument;
     const folder = await fs.getTemporaryFolder();
     const file = await folder.createFile(`ps-node-selection-${Date.now()}.png`, { overwrite: true });

@@ -71,23 +71,23 @@ function useElapsed(ctx: CanvasNodeContext, running: boolean): number {
 
 function useSettings(ctx: CanvasNodeContext) {
     const [settings, setSettings] = useState<PsSettings | null>(null);
+    // ctx 每次渲染都是新对象，用 ref 避免 effect 反复触发（会不停向 PS 发 docs 命令）
+    const ctxRef = useRef<CanvasNodeContext>(ctx);
+    ctxRef.current = ctx;
     useEffect(() => {
         let alive = true;
-        void loadSettings(ctx).then((value) => {
+        void loadSettings(ctxRef.current).then((value) => {
             if (alive) setSettings(value);
         });
         return () => {
             alive = false;
         };
-    }, [ctx]);
-    const update = useCallback(
-        async (patch: Partial<PsSettings>) => {
-            const next = await saveSettings(ctx, patch);
-            setSettings(next);
-            return next;
-        },
-        [ctx],
-    );
+    }, [ctx.node.id]);
+    const update = useCallback(async (patch: Partial<PsSettings>) => {
+        const next = await saveSettings(ctxRef.current, patch);
+        setSettings(next);
+        return next;
+    }, []);
     return { settings, update };
 }
 
