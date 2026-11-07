@@ -47,6 +47,15 @@ function readMeta(ctx: CanvasNodeContext, key: string): string {
     return typeof value === "string" ? value : "";
 }
 
+const STALE_RUN_MS = 120_000;
+
+/** 运行态超过 2 分钟视为上次操作已中断（中继/PS 卡住时不至于一直转圈）。 */
+function isStaleRun(ctx: CanvasNodeContext): boolean {
+    if (!RUNNING_STATUSES.has(readStatus(ctx))) return false;
+    const startedAt = typeof ctx.node.metadata?.psStartedAt === "number" ? ctx.node.metadata.psStartedAt : 0;
+    return Boolean(startedAt) && Date.now() - startedAt > STALE_RUN_MS;
+}
+
 /** 运行中每 0.5s 刷新一次耗时。 */
 function useElapsed(ctx: CanvasNodeContext, running: boolean): number {
     const startedAt = typeof ctx.node.metadata?.psStartedAt === "number" ? ctx.node.metadata.psStartedAt : 0;
@@ -92,11 +101,29 @@ function EmptyIcon() {
     );
 }
 
+function PushIcon() {
+    return (
+        <svg className="ps-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M12 19V5" />
+            <path d="m5 12 7-7 7 7" />
+        </svg>
+    );
+}
+
+function PullIcon() {
+    return (
+        <svg className="ps-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M12 5v14" />
+            <path d="m19 12-7 7-7-7" />
+        </svg>
+    );
+}
+
 export function NodeContent({ ctx }: CanvasNodeContentProps) {
     const content = readMeta(ctx, "content");
-    const status = readStatus(ctx);
-    const error = readError(ctx);
-    const meta = [readMeta(ctx, "psDoc"), readMeta(ctx, "psLayer")].filter(Boolean).join(" · ");
+    const stale = isStaleRun(ctx);
+    const status = stale ? "error" : readStatus(ctx);
+    const error = stale ? "上次操作没有完成，可重新推送或取回" : readError(ctx);
     const running = RUNNING_STATUSES.has(status);
     const elapsed = useElapsed(ctx, running);
 
@@ -112,28 +139,17 @@ export function NodeContent({ ctx }: CanvasNodeContentProps) {
             ) : (
                 <div className="ps-node__empty">
                     <EmptyIcon />
-                    <span>
-                        从 PS 取回，或接一个上游图片
-                    </span>
+                    <span>从 PS 取回画面</span>
                 </div>
             )}
-            <div className="ps-node__head">
+            <div className="ps-node__status">
                 <span className={dotClass(status)} />
                 <span>{STATUS_LABELS[status] ?? status}</span>
                 {running && elapsed > 0 ? <span className="ps-node__timer">{elapsed}s</span> : null}
             </div>
-            {error || meta ? (
-                <div className="ps-node__foot">
-                    {error ? (
-                        <span className="ps-node__error" title={error}>
-                            {error}
-                        </span>
-                    ) : null}
-                    {meta ? (
-                        <span className="ps-node__meta" title={meta}>
-                            {meta}
-                        </span>
-                    ) : null}
+            {error ? (
+                <div className="ps-node__error" title={error}>
+                    {error}
                 </div>
             ) : null}
         </div>
@@ -146,11 +162,12 @@ export function NodePanel({ ctx }: CanvasNodePanelProps) {
     const [token, setToken] = useState("");
     const [docs, setDocs] = useState<PsDoc[]>([]);
     const [docsState, setDocsState] = useState<"idle" | "loading" | "ready" | "error">("idle");
-    const [healthText, setHealthText] = useState("检测中…");
+    const [healthText, setHealthText] = useState("连接中…");
     const [busy, setBusy] = useState(false);
 
-    const status = readStatus(ctx);
-    const error = readError(ctx);
+    const stale = isStaleRun(ctx);
+    const status = stale ? "error" : readStatus(ctx);
+    const error = stale ? "上次操作没有完成，可重新推送或取回" : readError(ctx);
     const running = RUNNING_STATUSES.has(status);
     const elapsed = useElapsed(ctx, running);
     const disabled = !settings || busy;
@@ -167,7 +184,7 @@ export function NodePanel({ ctx }: CanvasNodePanelProps) {
             const list = await refreshDocs(current);
             setDocs(list);
             setDocsState("ready");
-            setHealthText("已连接 · PS 在线");
+            setHealthText("PS 在线");
         } catch (loadError) {
             setDocsState("error");
             setHealthText(`未连接：${loadError instanceof Error ? loadError.message : String(loadError)}`);
@@ -193,7 +210,7 @@ export function NodePanel({ ctx }: CanvasNodePanelProps) {
     const testConnection = async () => {
         if (!settings) return;
         const result = await checkHealth(await loadSettings(ctx));
-        setHealthText(result?.ok ? (result.photoshop?.connected ? "已连接 · PS 在线" : "已连接 · PS 未连接") : "未连接");
+        setHealthText(result?.ok ? (result.photoshop?.connected ? "PS 在线" : "中继在线，PS 未连接") : "中继未连接");
     };
 
     const docValue = settings?.doc ?? "";
@@ -201,19 +218,19 @@ export function NodePanel({ ctx }: CanvasNodePanelProps) {
 
     return (
         <div className="ps-root ps-panel" data-canvas-no-zoom onMouseDown={(event) => event.stopPropagation()} style={themeVars(ctx.theme)}>
-            <div className="ps-row ps-row--between">
+            <div className="ps-bar">
                 <span className="ps-status">
                     <span className={docsState === "error" ? "ps-dot ps-dot--error" : "ps-dot ps-dot--ok"} />
-                    <span className="ps-hint" title={healthText}>
+                    <span className="ps-status__text" title={healthText}>
                         {healthText}
                     </span>
                 </span>
                 <button type="button" className="ps-textbtn" disabled={!settings || docsState === "loading"} onClick={() => settings && void loadDocs(settings)}>
-                    {docsState === "loading" ? "刷新中…" : "刷新文档"}
+                    {docsState === "loading" ? "刷新中" : "刷新文档"}
                 </button>
             </div>
 
-            <div className="ps-row">
+            <div className="ps-controls">
                 <select className="ps-select" value={docValue} disabled={disabled} onChange={(event) => void update({ doc: event.target.value })}>
                     <option value="">跟随当前文档</option>
                     {docOptions}
@@ -233,27 +250,29 @@ export function NodePanel({ ctx }: CanvasNodePanelProps) {
             </div>
 
             <div className="ps-actions">
-                <button type="button" className="ps-primary" disabled={disabled} onClick={() => void runTask(pushToPs)}>
+                <button type="button" className="ps-action ps-action--strong" disabled={disabled} onClick={() => void runTask(pushToPs)}>
+                    <PushIcon />
                     推送
                 </button>
-                <button type="button" className="ps-ghost" disabled={disabled} onClick={() => void runTask(pullFromPs)}>
+                <button type="button" className="ps-action" disabled={disabled} onClick={() => void runTask(pullFromPs)}>
+                    <PullIcon />
                     取回
                 </button>
+                <span className="ps-spacer" />
+                {running ? (
+                    <span className="ps-hint ps-hint--nowrap">
+                        {RUNNING_LABELS[status] ?? "运行中"} · {elapsed}s
+                    </span>
+                ) : error ? (
+                    <span className="ps-error ps-hint--nowrap" title={error}>
+                        {error}
+                    </span>
+                ) : null}
             </div>
 
-            <div className="ps-hint">
-                生成 / 改图用图片节点：图片节点 → 本节点（推送用生成结果）；本节点 → 图片节点（PS 图当参考）
+            <div className="ps-hint ps-hint--tip">
+                生成 / 改图用图片节点：图片节点 → 本节点（推送结果）；本节点 → 图片节点（PS 画面当参考）
             </div>
-
-            {running ? (
-                <div className="ps-hint">
-                    {RUNNING_LABELS[status] ?? "运行中"} · {elapsed}s
-                </div>
-            ) : error ? (
-                <div className="ps-error" title={error}>
-                    {error}
-                </div>
-            ) : null}
 
             <details className="ps-details">
                 <summary>中继设置</summary>

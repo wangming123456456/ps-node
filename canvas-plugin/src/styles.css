@@ -15,37 +15,35 @@
     height: 100%;
     width: 100%;
     box-sizing: border-box;
-    padding: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
-}
-
-.ps-node__empty {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    color: var(--ps-placeholder);
-    text-align: center;
-    line-height: 1.7;
-    font-size: 12px;
+    overflow: hidden;
+    border-radius: 22px;
 }
 
 .ps-node__image {
     max-width: 100%;
     max-height: 100%;
     object-fit: contain;
-    border-radius: 8px;
     display: block;
 }
 
-.ps-node__head {
-    position: absolute;
-    top: 8px;
-    left: 10px;
-    right: 10px;
+.ps-node__empty {
     display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    color: var(--ps-placeholder);
+    font-size: 11px;
+    text-align: center;
+}
+
+.ps-node__status {
+    position: absolute;
+    left: 12px;
+    bottom: 8px;
+    display: inline-flex;
     align-items: center;
     gap: 6px;
     color: var(--ps-muted);
@@ -54,34 +52,20 @@
 }
 
 .ps-node__timer {
-    margin-left: auto;
     font-variant-numeric: tabular-nums;
 }
 
-.ps-node__foot {
-    position: absolute;
-    left: 10px;
-    right: 10px;
-    bottom: 8px;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    font-size: 11px;
-    pointer-events: none;
-}
-
-.ps-node__meta {
-    color: var(--ps-muted);
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
 .ps-node__error {
+    position: absolute;
+    left: 12px;
+    right: 12px;
+    bottom: 26px;
     color: #ef4444;
+    font-size: 11px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    pointer-events: none;
 }
 
 /* ---------------- 状态点 ---------------- */
@@ -112,18 +96,17 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
-    padding: 0 2px;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0 4px;
 }
 
-.ps-row {
+.ps-bar {
     display: flex;
     align-items: center;
-    gap: 8px;
-    min-width: 0;
-}
-
-.ps-row--between {
     justify-content: space-between;
+    gap: 12px;
+    min-height: 24px;
 }
 
 .ps-status {
@@ -134,8 +117,11 @@
     min-width: 0;
 }
 
-.ps-spacer {
-    flex: 1;
+.ps-status__text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 11px;
 }
 
 .ps-textbtn {
@@ -144,7 +130,7 @@
     background: transparent;
     color: var(--ps-muted);
     font: inherit;
-    font-size: 12px;
+    font-size: 11px;
     padding: 4px 8px;
     border-radius: 6px;
     cursor: pointer;
@@ -161,13 +147,19 @@
     cursor: not-allowed;
 }
 
-.ps-select,
-.ps-input {
-    height: 32px;
-    box-sizing: border-box;
-    width: 100%;
+.ps-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
     min-width: 0;
-    padding: 0 8px;
+}
+
+.ps-select {
+    height: 32px;
+    flex: 1;
+    min-width: 0;
+    box-sizing: border-box;
+    padding: 0 10px;
     border: 1px solid var(--ps-stroke);
     border-radius: 8px;
     background: transparent;
@@ -176,8 +168,7 @@
     font-size: 12px;
 }
 
-.ps-select:focus,
-.ps-input:focus {
+.ps-select:focus {
     outline: none;
     border-color: var(--ps-muted);
 }
@@ -201,7 +192,7 @@
     color: var(--ps-muted);
     font: inherit;
     font-size: 11px;
-    padding: 5px 7px;
+    padding: 4px 8px;
     border-radius: 6px;
     cursor: pointer;
     font-variant-numeric: tabular-nums;
@@ -213,76 +204,79 @@
 }
 
 .ps-seg button[aria-pressed="true"] {
-    background: var(--ps-active);
     color: var(--ps-text);
+    font-weight: 600;
 }
 
 .ps-actions {
     display: flex;
-    gap: 8px;
+    align-items: center;
+    gap: 4px;
+    min-height: 30px;
 }
 
-.ps-primary {
-    flex: 1;
-    height: 34px;
-    border: 0;
-    border-radius: 8px;
-    background: var(--ps-text);
-    color: var(--ps-panel);
-    font: inherit;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-}
-
-.ps-primary:hover:not(:disabled) {
-    opacity: 0.88;
-}
-
-.ps-primary:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-}
-
-.ps-ghost {
-    flex: 1;
-    height: 34px;
+.ps-action {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 30px;
+    padding: 0 10px;
     border: 0;
     border-radius: 8px;
     background: transparent;
-    color: var(--ps-text);
+    color: var(--ps-muted);
     font: inherit;
     font-size: 12px;
     cursor: pointer;
     white-space: nowrap;
 }
 
-.ps-ghost:hover:not(:disabled) {
+.ps-action:hover:not(:disabled) {
     background: var(--ps-hover);
+    color: var(--ps-text);
 }
 
-.ps-ghost:disabled {
+.ps-action--strong {
+    color: var(--ps-text);
+    font-weight: 600;
+}
+
+.ps-action:disabled {
     opacity: 0.4;
     cursor: not-allowed;
+}
+
+.ps-icon {
+    width: 14px;
+    height: 14px;
+    flex: none;
+}
+
+.ps-spacer {
+    flex: 1;
 }
 
 .ps-hint {
     color: var(--ps-muted);
     font-size: 11px;
-    line-height: 1.5;
+    line-height: 1.6;
     min-width: 0;
+}
+
+.ps-hint--nowrap {
+    max-width: 55%;
+    white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    white-space: nowrap;
+}
+
+.ps-hint--tip {
+    white-space: normal;
 }
 
 .ps-error {
     color: #ef4444;
     font-size: 11px;
-    line-height: 1.5;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
 }
 
 /* ---------------- 折叠区 ---------------- */
@@ -295,7 +289,7 @@
     list-style: none;
     cursor: pointer;
     color: var(--ps-muted);
-    font-size: 12px;
+    font-size: 11px;
     padding: 2px 0;
     user-select: none;
 }
@@ -326,22 +320,21 @@
     padding: 8px 0 2px;
 }
 
-.ps-textarea {
-    width: 100%;
+.ps-input {
+    height: 30px;
     box-sizing: border-box;
-    min-height: 66px;
-    resize: vertical;
-    padding: 8px;
+    width: 100%;
+    min-width: 0;
+    padding: 0 10px;
     border: 1px solid var(--ps-stroke);
     border-radius: 8px;
     background: transparent;
     color: var(--ps-text);
     font: inherit;
     font-size: 12px;
-    line-height: 1.6;
 }
 
-.ps-textarea:focus {
+.ps-input:focus {
     outline: none;
     border-color: var(--ps-muted);
 }

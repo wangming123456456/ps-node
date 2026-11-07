@@ -432,6 +432,15 @@ function sleep(ms) {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/** PS 操作超过 110s 强制返回错误，避免单条命令把轮询循环卡死。 */
+function withTimeout(promise, ms, message) {
+    let timer;
+    const timeout = new Promise((resolve, reject) => {
+        timer = setTimeout(() => reject(new Error(message)), ms);
+    });
+    return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
 async function startPolling() {
     if (polling) return;
     polling = true;
@@ -444,7 +453,7 @@ async function startPolling() {
             if (!response.ok) throw new Error(`中继返回 ${response.status}`);
             const job = await response.json();
             log(`收到命令：${job.command}`);
-            const result = await handle(job.command, job.payload);
+            const result = await withTimeout(handle(job.command, job.payload), 110000, "PS 操作超时（110s）");
             await request("/api/result", { method: "POST", body: JSON.stringify(Object.assign({ id: job.id }, result)) });
             if (result.ok === false) log(`命令失败：${result.error}`);
             refreshDocumentInfo();
