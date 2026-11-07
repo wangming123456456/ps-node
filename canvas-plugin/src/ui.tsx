@@ -242,7 +242,7 @@ export function NodePanel({ ctx }: CanvasNodePanelProps) {
             </div>
 
             <div className="ps-hint">
-                生成 / 改图用画布里的图片节点，结果连到本节点后点「推送」进 PS
+                生成 / 改图用图片节点：图片节点 → 本节点（推送用生成结果）；本节点 → 图片节点（PS 图当参考）
             </div>
 
             {running ? (

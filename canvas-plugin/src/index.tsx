@@ -6,7 +6,7 @@ import { NodeContent, NodePanel, nodeToolbar } from "./ui";
 export default definePlugin({
     id: "ps",
     name: "PS 节点",
-    version: "0.1.5",
+    version: "0.1.6",
     description: "画布 ↔ Photoshop 通道：推送 / 取回，生成改图交给图片节点",
     css,
     nodes: [

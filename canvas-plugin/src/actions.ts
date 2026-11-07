@@ -103,15 +103,21 @@ export async function refreshDocs(settings: PsSettings): Promise<PsDoc[]> {
     return data.docs;
 }
 
-/** 节点自身内容，没有就取第一张上游节点的图（图片节点 → PS 节点的常用接法）。 */
+/** 推送源优先级：上游图（图片节点生成结果）→ 下游图（反向连回来）→ 节点自身内容（取回的画面）。 */
 export function readPushImage(ctx: CanvasNodeContext): string {
-    const own = typeof ctx.node.metadata?.content === "string" ? ctx.node.metadata.content : "";
-    if (own) return own;
-    for (const node of ctx.getUpstream()) {
+    const imageOf = (node: { metadata?: Record<string, unknown> }) => {
         const content = node.metadata?.content;
-        if (typeof content === "string" && content) return content;
+        return typeof content === "string" ? content : "";
+    };
+    for (const node of ctx.getUpstream()) {
+        const image = imageOf(node);
+        if (image) return image;
     }
-    return "";
+    for (const node of ctx.getDownstream()) {
+        const image = imageOf(node);
+        if (image) return image;
+    }
+    return imageOf(ctx.node);
 }
 
 export async function pushToPs(ctx: CanvasNodeContext, settings: PsSettings): Promise<void> {
