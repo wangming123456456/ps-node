@@ -722,11 +722,16 @@ async function renderImage() {
         lastRenderSelection = selectionBounds;
         const genApply = el("gen-apply");
         if (genApply) genApply.textContent = selectionBounds ? "贴回选区" : "添加到图层";
+        const resultCard = el("result-card");
+        if (resultCard) resultCard.hidden = false;
+        const resultEmpty = el("result-empty");
+        if (resultEmpty) resultEmpty.hidden = true;
         const preview = el("preview");
         if (preview) {
             preview.src = lastRender;
             preview.hidden = false;
         }
+        activateTab("display");
         setGenState(selectionBounds ? "渲染完成（选区）" : "渲染完成");
         log(selectionBounds ? "渲染完成，可贴回选区" : "渲染完成");
     } catch (error) {
@@ -765,6 +770,18 @@ async function applyRender() {
 // 面板
 // ---------------------------------------------------------------------------
 
+function activateTab(name) {
+    const isDisplay = name === "display";
+    const displayPane = el("tab-display");
+    const configPane = el("tab-config");
+    if (displayPane) displayPane.hidden = !isDisplay;
+    if (configPane) configPane.hidden = isDisplay;
+    const displayBtn = el("tab-display-btn");
+    const configBtn = el("tab-config-btn");
+    if (displayBtn) displayBtn.classList.toggle("tab--active", isDisplay);
+    if (configBtn) configBtn.classList.toggle("tab--active", !isDisplay);
+}
+
 entrypoints.setup({
     panels: {
         psNodePanel: {
@@ -796,6 +813,11 @@ function boot() {
     if (sendCanvas) sendCanvas.addEventListener("click", () => void sendCurrentToCanvas());
     const recvCanvas = el("recv-canvas");
     if (recvCanvas) recvCanvas.addEventListener("click", () => void receiveFromCanvas());
+    const tabDisplay = el("tab-display-btn");
+    if (tabDisplay) tabDisplay.addEventListener("click", () => activateTab("display"));
+    const tabConfig = el("tab-config-btn");
+    if (tabConfig) tabConfig.addEventListener("click", () => activateTab("config"));
+    activateTab("display");
     const logToggle = el("log-toggle");
     if (logToggle) logToggle.addEventListener("click", () => el("log-section").classList.toggle("open"));
     const relayToggle = el("relay-toggle");

@@ -213,6 +213,45 @@
                 display: block;
             }
 
+            .tabs {
+                display: flex;
+                align-items: center;
+                gap: 4px;
+                border-bottom: 1px solid var(--stroke);
+                padding-bottom: 6px;
+            }
+
+            .tab {
+                appearance: none;
+                border: 0;
+                background: transparent;
+                color: var(--muted);
+                font: inherit;
+                font-size: 12px;
+                padding: 4px 10px;
+                border-radius: 6px;
+                cursor: pointer;
+            }
+
+            .tab:hover {
+                color: var(--text);
+            }
+
+            .tab--active {
+                color: var(--text);
+                font-weight: 600;
+            }
+
+            .pane {
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .pane[hidden] {
+                display: none;
+            }
+
             .gen {
                 display: flex;
                 flex-direction: column;
@@ -356,6 +395,12 @@
                 <button id="connect" type="button" class="textbtn">连接</button>
             </div>
 
+            <div class="tabs">
+                <button id="tab-display-btn" type="button" class="tab tab--active">画面</button>
+                <button id="tab-config-btn" type="button" class="tab">配置</button>
+            </div>
+
+            <section id="tab-display" class="pane">
             <div class="doc">
                 <div id="doc-name" class="doc__name">没有打开的文档</div>
                 <div id="doc-meta" class="doc__meta"></div>
@@ -381,6 +426,19 @@
                 </div>
             </div>
 
+            <div class="gen" id="result-card" hidden>
+                <div class="row row--between">
+                    <span class="gen__title">生成结果</span>
+                    <button id="gen-apply" class="ghost" type="button" disabled>添加到图层</button>
+                </div>
+                <div class="shot__box">
+                    <img id="preview" class="shot__img" alt="" hidden />
+                    <span id="result-empty" class="muted">渲染完成后显示在这里</span>
+                </div>
+            </div>
+            </section>
+
+            <section id="tab-config" class="pane" hidden>
             <div class="gen">
                 <div class="row row--between">
                     <span class="gen__title">AI 生成</span>
@@ -393,11 +451,6 @@
                 <div class="row row--between">
                     <span id="gen-state" class="muted gen__state">就绪</span>
                     <button id="render" class="primary" type="button">渲染</button>
-                </div>
-                <img id="preview" class="preview" alt="" hidden />
-                <div class="row">
-                    <span class="spacer"></span>
-                    <button id="gen-apply" class="ghost" type="button" disabled>添加到图层</button>
                 </div>
             </div>
 
@@ -419,6 +472,7 @@
                     </div>
                 </div>
             </div>
+            </section>
         </div>
         <script src="main.js"></script>
     </body>
