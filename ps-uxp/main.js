@@ -194,23 +194,34 @@ async function exportMergedImage(payload) {
             ? { width: Math.max(1, Math.round((width * maxEdge) / longest)), height: Math.max(1, Math.round((height * maxEdge) / longest)) }
             : undefined;
     try {
-        const result = await imaging.getPixels({
-            documentID: source.id,
-            sourceBounds: { left: 0, top: 0, right: width, bottom: height },
-            ...(targetSize ? { targetSize } : {}),
-        });
-        try {
-            const base64 = await imaging.encodeImageData({ imageData: result.imageData, base64: true });
-            return {
-                image: "data:image/jpeg;base64," + base64,
-                doc: source.name,
-                width: result.imageData.width,
-                height: result.imageData.height,
-            };
-        } finally {
-            if (result.imageData && typeof result.imageData.dispose === "function") result.imageData.dispose();
-        }
+        // Imaging API 必须在 executeAsModal 作用域内调用（否则会报 modal scope 错误并回退到复制文档）
+        const encoded = await core.executeAsModal(
+            async () => {
+                const result = await imaging.getPixels({
+                    documentID: source.id,
+                    sourceBounds: { left: 0, top: 0, right: width, bottom: height },
+                    applyAlpha: true,
+                    componentSize: 8,
+                    ...(targetSize ? { targetSize } : {}),
+                });
+                try {
+                    const base64 = await imaging.encodeImageData({ imageData: result.imageData, base64: true });
+                    console.log("[ps-node] export imaging: ok " + result.imageData.width + "x" + result.imageData.height);
+                    return { base64, width: result.imageData.width, height: result.imageData.height };
+                } finally {
+                    if (result.imageData && typeof result.imageData.dispose === "function") result.imageData.dispose();
+                }
+            },
+            { commandName: "PS 节点：读取画面" },
+        );
+        return {
+            image: "data:image/jpeg;base64," + encoded.base64,
+            doc: source.name,
+            width: encoded.width,
+            height: encoded.height,
+        };
     } catch (error) {
+        console.log("[ps-node] export imaging failed: " + messageOf(error));
         log(`Imaging 导出失败，回退副本导出：${messageOf(error)}`);
         return exportMergedViaDuplicate(source, maxEdge);
     }
@@ -218,6 +229,7 @@ async function exportMergedImage(payload) {
 
 /** 兼容回退：副本导出（老实现，会让文档窗口闪一下）。 */
 async function exportMergedViaDuplicate(source, maxEdge) {
+    console.log("[ps-node] export duplicate: start");
     const folder = await fs.getTemporaryFolder();
     const file = await folder.createFile(`ps-node-pull-${Date.now()}.png`, { overwrite: true });
     let exportedWidth = source.width;
@@ -337,16 +349,24 @@ async function exportSelectionReference(bounds) {
     const bottom = Math.min(source.height, Math.round(bounds.bottom));
     if (right - left < 2 || bottom - top < 2) throw new Error("选区超出画布范围");
     try {
-        const result = await imaging.getPixels({
-            documentID: source.id,
-            sourceBounds: { left, top, right, bottom },
-        });
-        try {
-            const base64 = await imaging.encodeImageData({ imageData: result.imageData, base64: true });
-            return { image: "data:image/jpeg;base64," + base64, width: right - left, height: bottom - top };
-        } finally {
-            if (result.imageData && typeof result.imageData.dispose === "function") result.imageData.dispose();
-        }
+        const encoded = await core.executeAsModal(
+            async () => {
+                const result = await imaging.getPixels({
+                    documentID: source.id,
+                    sourceBounds: { left, top, right, bottom },
+                    applyAlpha: true,
+                    componentSize: 8,
+                });
+                try {
+                    const base64 = await imaging.encodeImageData({ imageData: result.imageData, base64: true });
+                    return { base64 };
+                } finally {
+                    if (result.imageData && typeof result.imageData.dispose === "function") result.imageData.dispose();
+                }
+            },
+            { commandName: "PS 节点：读取选区" },
+        );
+        return { image: "data:image/jpeg;base64," + encoded.base64, width: right - left, height: bottom - top };
     } catch (error) {
         log(`选区 Imaging 导出失败，回退副本：${messageOf(error)}`);
         return exportSelectionViaDuplicate(bounds);
