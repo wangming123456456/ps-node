@@ -40,7 +40,7 @@ function log(line) {
     if (!node) return;
     const time = new Date().toLocaleTimeString("zh-CN");
     node.textContent = `${time}  ${line}\n` + node.textContent;
-    if (/失败|中断|错误|不存在/.test(line)) {
+    if (/失败|中断|错误|不存在|选区/.test(line)) {
         const section = el("log-section");
         if (section) section.classList.add("open");
     }
@@ -230,6 +230,136 @@ async function exportMergedImage(payload) {
     };
 }
 
+/** 读当前选区边界；没有选区或选区太小返回 null。 */
+function readSelectionBounds(logMiss = false) {
+    try {
+        const doc = app.activeDocument;
+        if (!doc) {
+            if (logMiss) log("读选区：没有活动文档");
+            return null;
+        }
+        const selection = doc.selection;
+        if (!selection) {
+            if (logMiss) log("读选区：DOM selection 不可用");
+            return null;
+        }
+        const bounds = selection.bounds;
+        if (!bounds) {
+            if (logMiss) log("读选区：DOM bounds 为空（当前无选区）");
+            return null;
+        }
+        const left = Math.round(bounds.left);
+        const top = Math.round(bounds.top);
+        const right = Math.round(bounds.right);
+        const bottom = Math.round(bounds.bottom);
+        if (right - left < 2 || bottom - top < 2) return null;
+        return { left, top, right, bottom };
+    } catch (error) {
+        if (logMiss) log(`读选区异常：${messageOf(error)}`);
+        return null;
+    }
+}
+
+function unitValue(value) {
+    if (value && typeof value === "object" && typeof value._value === "number") return value._value;
+    return Number(value);
+}
+
+/** DOM 读不到时用 batchPlay 兜底（PS 25.0 上实测 DOM 的 selection.bounds 不一定可用）。 */
+async function resolveSelectionBounds() {
+    const domBounds = readSelectionBounds(true);
+    if (domBounds) return domBounds;
+    try {
+        const result = await action.batchPlay(
+            [{ _obj: "get", _target: [{ _property: "selection" }, { _ref: "document", _enum: "ordinal", _value: "targetEnum" }] }],
+            { synchronousExecution: false },
+        );
+        const selection = result && result[0] ? result[0].selection : null;
+        if (!selection) {
+            log(`读选区 batchPlay 返回空：${JSON.stringify(result).slice(0, 160)}`);
+            return null;
+        }
+        const left = Math.round(unitValue(selection.left));
+        const top = Math.round(unitValue(selection.top));
+        const right = Math.round(unitValue(selection.right));
+        const bottom = Math.round(unitValue(selection.bottom));
+        if (![left, top, right, bottom].every((value) => Number.isFinite(value))) return null;
+        if (right - left < 2 || bottom - top < 2) return null;
+        return { left, top, right, bottom };
+    } catch (error) {
+        log(`读选区失败：${messageOf(error)}`);
+        return null;
+    }
+}
+
+/** 导出选区范围的参考图（副本裁切，不动原文档）。 */
+async function exportSelectionReference(bounds) {
+    const source = app.activeDocument;
+    const folder = await fs.getTemporaryFolder();
+    const file = await folder.createFile(`ps-node-selection-${Date.now()}.png`, { overwrite: true });
+    await core.executeAsModal(
+        async () => {
+            const copy = await source.duplicate();
+            try {
+                if (copy.mode !== constants.DocumentMode.RGB) {
+                    try {
+                        await copy.changeMode(constants.ChangeMode.RGB);
+                    } catch (error) {
+                        log(`转 RGB 失败（继续）：${messageOf(error)}`);
+                    }
+                }
+                try {
+                    copy.bitsPerChannel = constants.BitsPerChannelType.EIGHT;
+                } catch (error) {
+                    log(`转 8 位失败（继续）：${messageOf(error)}`);
+                }
+                await copy.flatten();
+                await copy.crop({ top: bounds.top, left: bounds.left, bottom: bounds.bottom, right: bounds.right });
+                await copy.saveAs.png(file, { compression: 6 }, true);
+            } finally {
+                copy.closeWithoutSaving();
+            }
+        },
+        { commandName: "PS 节点：导出选区参考" },
+    );
+    return {
+        image: "data:image/png;base64," + (await readFileBase64(file)),
+        width: bounds.right - bounds.left,
+        height: bounds.bottom - bounds.top,
+    };
+}
+
+/** 把生成图缩放/位移到选区框内，贴成新图层。 */
+async function placeImageInSelection(image, bounds, layerName) {
+    const file = await writeTemporaryPng(image, "ps-node-selection-result");
+    const token = fs.createSessionToken(file);
+    await core.executeAsModal(
+        async () => {
+            await action.batchPlay([{ _obj: "placeEvent", null: { _path: token, _kind: "local" }, _options: { dialogOptions: "dontDisplay" } }], {});
+            const doc = app.activeDocument;
+            const layer = doc && doc.activeLayers && doc.activeLayers.length ? doc.activeLayers[0] : null;
+            if (!layer) throw new Error("放置图层失败");
+            if (layerName) layer.name = layerName;
+            const current = layer.bounds;
+            const currentWidth = Math.max(1, current.right - current.left);
+            const currentHeight = Math.max(1, current.bottom - current.top);
+            const targetWidth = Math.max(1, bounds.right - bounds.left);
+            const targetHeight = Math.max(1, bounds.bottom - bounds.top);
+            await layer.scale((targetWidth / currentWidth) * 100, (targetHeight / currentHeight) * 100, constants.AnchorPosition.TOPLEFT);
+            const scaled = layer.bounds;
+            await layer.translate(bounds.left - scaled.left, bounds.top - scaled.top);
+        },
+        { commandName: "PS 节点：贴回选区" },
+    );
+    const doc = app.activeDocument;
+    return {
+        doc: doc.name,
+        layer: layerName,
+        width: bounds.right - bounds.left,
+        height: bounds.bottom - bounds.top,
+    };
+}
+
 // ---------------------------------------------------------------------------
 // 中继客户端
 // ---------------------------------------------------------------------------
@@ -338,6 +468,10 @@ async function handle(command, payload) {
             }));
             return { ok: true, data: { docs } };
         }
+        if (command === "selection") {
+            const bounds = await resolveSelectionBounds();
+            return { ok: true, data: { bounds, doc: currentDocName() } };
+        }
         if (command === "push") {
             const image = payload && payload.image;
             if (!image) return { ok: false, error: "缺少图片数据" };
@@ -365,7 +499,8 @@ function refreshDocumentInfo() {
         const doc = app.activeDocument;
         name = doc.name;
         const layerCount = doc.layers ? doc.layers.length : 0;
-        meta = `${doc.width}×${doc.height} · ${layerCount} 个图层`;
+        const selection = readSelectionBounds();
+        meta = `${doc.width}×${doc.height} · ${layerCount} 个图层` + (selection ? ` · 选区 ${selection.right - selection.left}×${selection.bottom - selection.top}` : "");
     } catch (error) {
         // 没有打开的文档
     }
@@ -379,6 +514,7 @@ function refreshDocumentInfo() {
 // ---------------------------------------------------------------------------
 
 let lastRender = null;
+let lastRenderSelection = null;
 let modelsLoaded = false;
 let genBusy = false;
 
@@ -462,32 +598,49 @@ async function renderImage() {
     setGenState("渲染中…");
     log("开始渲染…");
     try {
+        const selectionBounds = await resolveSelectionBounds();
         let reference;
-        const refToggle = el("ref-toggle");
-        if (refToggle && refToggle.checked) {
+        if (selectionBounds) {
             try {
-                const pulled = await exportMergedImage({ maxEdge: 1024 });
-                reference = pulled.image;
+                const prepared = await exportSelectionReference(selectionBounds);
+                reference = prepared.image;
+                setGenState(`已截取选区 ${prepared.width}×${prepared.height}，生成中…`);
+                log(`已截取选区 ${prepared.width}×${prepared.height}`);
             } catch (error) {
-                log(`参考图获取失败，改纯文生图：${messageOf(error)}`);
+                log(`选区参考图失败，改用整图：${messageOf(error)}`);
+            }
+        }
+        if (!reference) {
+            const refToggle = el("ref-toggle");
+            if (refToggle && refToggle.checked) {
+                try {
+                    const pulled = await exportMergedImage({ maxEdge: 1024 });
+                    reference = pulled.image;
+                } catch (error) {
+                    log(`参考图获取失败，改纯文生图：${messageOf(error)}`);
+                }
             }
         }
         const modelNode = el("model-select");
         const data = await requestCanvas("generate", {
             prompt,
-            model: modelNode ? modelNode.value : "",
+            model: modelNode ? String(modelNode.value || "") : "",
             reference,
             doc: currentDocName(),
+            selection: selectionBounds || undefined,
         });
         if (!data || !data.image) throw new Error("画布没有返回图片");
         lastRender = data.image;
+        lastRenderSelection = selectionBounds;
+        const genApply = el("gen-apply");
+        if (genApply) genApply.textContent = selectionBounds ? "贴回选区" : "添加到图层";
         const preview = el("preview");
         if (preview) {
             preview.src = lastRender;
             preview.hidden = false;
         }
-        setGenState("渲染完成");
-        log("渲染完成");
+        setGenState(selectionBounds ? "渲染完成（选区）" : "渲染完成");
+        log(selectionBounds ? "渲染完成，可贴回选区" : "渲染完成");
     } catch (error) {
         setGenState(messageOf(error), true);
         log(`渲染失败：${messageOf(error)}`);
@@ -502,9 +655,15 @@ async function applyRender() {
     setGenState("正在添加到图层…");
     try {
         const time = new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
-        const data = await placeImageAsLayer(lastRender, currentDocName(), `AI 生成 ${time}`);
-        setGenState(`已添加到图层：${data.layer}`);
-        log(`已添加到图层：${data.layer}`);
+        if (lastRenderSelection) {
+            const data = await placeImageInSelection(lastRender, lastRenderSelection, `AI 选区 ${time}`);
+            setGenState(`已贴回选区：${data.layer}`);
+            log(`已贴回选区：${data.layer}`);
+        } else {
+            const data = await placeImageAsLayer(lastRender, currentDocName(), `AI 生成 ${time}`);
+            setGenState(`已添加到图层：${data.layer}`);
+            log(`已添加到图层：${data.layer}`);
+        }
         refreshDocumentInfo();
     } catch (error) {
         setGenState(messageOf(error), true);

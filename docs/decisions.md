@@ -39,9 +39,19 @@
 
 | command | 请求 payload | 返回 data |
 |---|---|---|
-| `docs` | `{}` | `{ docs: [{ name, width, height }] }` |
+| `docs` | `{}` | `{ docs: [{ name, width, height, layers }] }` |
+| `selection` | `{}` | `{ bounds: { left, top, right, bottom } \| null, doc }` |
 | `push` | `{ image, mode: "newDoc" \| "layer", doc, layerName }` | `{ doc, layer?, width?, height? }` |
 | `pull` | `{ doc?, maxEdge? }` | `{ image, doc, width?, height? }` |
+
+### 反向请求（PS → 画布）
+
+| command | 请求 payload | 返回 data |
+|---|---|---|
+| `models` | `{}` | `{ models: [{ value, label }], defaultModel }` |
+| `generate` | `{ prompt, model?, reference?, doc?, selection? }` | `{ image }` |
+
+- 参考图与选区：`reference` 是 base64 图；`selection` 存在时 PS 侧会把参考图裁成选区范围，结果按选区框缩放贴回。
 
 - 图片单张上限 8 MB（base64），超出返回错误；`maxEdge` 默认 2048。
 - `push` 的 `layer` 模式只新增图层，不替换、不删除任何既有图层。

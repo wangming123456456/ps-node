@@ -58,7 +58,7 @@ PS 插件：用 UXP Developer Tool 加载 `ps-uxp/` 目录。
 - 宿主中继：`aigc-studio/electron/ps-relay.cjs`（零依赖 `node:http`），双向通道（画布↔PS），协议自测 12 项全过。
 - PS UXP 插件：`docs` / `push` / `pull` 真机通过；面板新增「AI 生成」区（模型下拉、提示词、参考当前画面、渲染预览、添加到图层），生成请求经中继交给画布宿主 `ctx.ai` 执行。
 - 画布插件：节点/面板按规范重塑；后台 worker 响应 PS 的 `generate` / `models` 请求，生成结果同时写回节点。
-- 已知阻塞：画布还没配置可用的 AI API Key，真机测试停在「AI 配置未就绪」；M2（选区局部修改）未开始。
+- 已知阻塞：画布还没配置可用的 AI API Key，真机测试停在「AI 配置未就绪」；M2（选区局部修改）代码已完成，选区读取已真机验证（`selection` 命令返回 bounds），选区裁切/贴回待配好 Key 后走完整流程。
 
 ## 文档
 
