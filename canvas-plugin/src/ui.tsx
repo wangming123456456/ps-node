@@ -2,7 +2,7 @@ import type { CSSProperties } from "react";
 import { useCallback, useEffect, useRef, useState } from "@infinite-canvas/plugin-sdk";
 import type { CanvasNodeContentProps, CanvasNodeContext, CanvasNodePanelProps, CanvasNodeToolbarItem, CanvasTheme } from "@infinite-canvas/plugin-sdk";
 
-import { checkHealth, loadSettings, optimizeInPs, pullFromPs, pushToPs, readError, readStatus, refreshDocs, saveSettings, type PsDoc, type PsSettings } from "./actions";
+import { checkHealth, loadSettings, pullFromPs, pushToPs, readError, readStatus, refreshDocs, saveSettings, type PsDoc, type PsSettings } from "./actions";
 import { startPsRequestWorker } from "./ps-requests";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -10,7 +10,6 @@ const STATUS_LABELS: Record<string, string> = {
     pushing: "推送中",
     inPS: "已在 PS",
     pulling: "取回中",
-    optimizing: "AI 优化中",
     done: "已完成",
     error: "出错",
 };
@@ -18,10 +17,9 @@ const STATUS_LABELS: Record<string, string> = {
 const RUNNING_LABELS: Record<string, string> = {
     pushing: "推送到 PS",
     pulling: "从 PS 取回",
-    optimizing: "AI 优化",
 };
 
-const RUNNING_STATUSES = new Set(["pushing", "pulling", "optimizing"]);
+const RUNNING_STATUSES = new Set(["pushing", "pulling"]);
 const MAX_EDGE_OPTIONS = [1024, 1536, 2048, 0];
 
 /** 只从画布主题取色，浅色/深色主题自动跟随。 */
@@ -152,7 +150,6 @@ export function NodePanel({ ctx }: CanvasNodePanelProps) {
     const { settings, update } = useSettings(ctx);
     const [url, setUrl] = useState("");
     const [token, setToken] = useState("");
-    const [prompt, setPrompt] = useState("");
     const [docs, setDocs] = useState<PsDoc[]>([]);
     const [docsState, setDocsState] = useState<"idle" | "loading" | "ready" | "error">("idle");
     const [healthText, setHealthText] = useState("检测中…");
@@ -168,7 +165,6 @@ export function NodePanel({ ctx }: CanvasNodePanelProps) {
         if (!settings) return;
         setUrl(settings.baseUrl);
         setToken(settings.token);
-        setPrompt(settings.prompt);
     }, [settings]);
 
     const loadDocs = useCallback(async (current: PsSettings) => {
@@ -242,20 +238,6 @@ export function NodePanel({ ctx }: CanvasNodePanelProps) {
                 </div>
             </div>
 
-            <details className="ps-details">
-                <summary>AI 提示词</summary>
-                <div className="ps-details__body">
-                    <textarea
-                        className="ps-textarea"
-                        value={prompt}
-                        placeholder="AI 优化用的提示词"
-                        onChange={(event) => setPrompt(event.target.value)}
-                        onBlur={() => prompt !== settings?.prompt && void update({ prompt })}
-                        onWheel={(event) => event.stopPropagation()}
-                    />
-                </div>
-            </details>
-
             <div className="ps-actions">
                 <button type="button" className="ps-primary" disabled={disabled} onClick={() => void runTask(pushToPs)}>
                     推送
@@ -263,9 +245,10 @@ export function NodePanel({ ctx }: CanvasNodePanelProps) {
                 <button type="button" className="ps-ghost" disabled={disabled} onClick={() => void runTask(pullFromPs)}>
                     取回
                 </button>
-                <button type="button" className="ps-ghost" disabled={disabled} onClick={() => void runTask(optimizeInPs)}>
-                    AI 优化
-                </button>
+            </div>
+
+            <div className="ps-hint">
+                生成 / 改图用画布里的图片节点，结果连到本节点后点「推送」进 PS
             </div>
 
             {running ? (
@@ -323,6 +306,5 @@ export function nodeToolbar(ctx: CanvasNodeContext): CanvasNodeToolbarItem[] {
     return [
         toolbarAction(ctx, "ps-push", "推送", "⬆️", pushToPs),
         toolbarAction(ctx, "ps-pull", "取回", "⬇️", pullFromPs),
-        toolbarAction(ctx, "ps-optimize", "AI 优化", "✨", optimizeInPs),
     ];
 }

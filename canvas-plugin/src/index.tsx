@@ -6,15 +6,15 @@ import { NodeContent, NodePanel, nodeToolbar } from "./ui";
 export default definePlugin({
     id: "ps",
     name: "PS 节点",
-    version: "0.1.3",
-    description: "把画布的图推进 Photoshop，改完再取回或 AI 优化",
+    version: "0.1.4",
+    description: "画布 ↔ Photoshop 通道：推送 / 取回，生成改图交给图片节点",
     css,
     nodes: [
         {
             type: "ps:layer",
             title: "Photoshop",
             icon: "🎨",
-            description: "画布发起、PS 落地：推送 / 取回 / AI 优化",
+            description: "画布 ↔ PS 通道：推送 / 取回；生成改图用图片节点",
             defaultSize: { width: 340, height: 380 },
             defaultMetadata: { content: "", psStatus: "idle", psDoc: "", psLayer: "", psError: "", psStartedAt: 0 },
             minimapColor: "#31a8ff",
