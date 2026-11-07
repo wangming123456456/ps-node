@@ -21,7 +21,12 @@ npm run dev        # watch
 npm run typecheck
 ```
 
-中继地址和 token 由宿主通过 `window.__RUNTIME_CONFIG__.psRelay` 注入；纯浏览器开发时在节点面板的「中继设置」里手填。
+## UI 约定
+
+- 视觉遵循宿主 `aigc-studio/AGENTS.md` 的「画布 UI 规范」：扁平、无边框阴影、按钮透明底 + hover、状态用圆点、折叠区默认收起。
+- 颜色只从 `ctx.theme` 取：`ui.tsx` 把 `theme.node.*` / `theme.toolbar.*` 写成 CSS 变量（`--ps-text/--ps-muted/--ps-hover/...`），样式在 `src/styles.css`，不在 JSX 里硬编码颜色。
+- 面板控件：目标文档下拉（跟随当前文档/指定文档）+ maxEdge 输出尺寸 + 可编辑 AI 提示词 + 三个动作 + 中继设置（折叠）。
+- 节点卡片：图片/空态、状态点与文案、运行中耗时、底部 `文档名 · 图层名`、错误一行红字。
 
 ## 同步 SDK
 

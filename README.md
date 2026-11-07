@@ -53,11 +53,11 @@ PS 插件：用 UXP Developer Tool 加载 `ps-uxp/` 目录。
 
 ## 当前状态
 
-阶段 1：PS 侧闭环已在真机跑通，画布侧待装进宿主联调。
+阶段 1：两端真机闭环已跑通，UI 已按画布 UI 规范重塑。
 
 - 宿主中继：`aigc-studio/electron/ps-relay.cjs`（零依赖 `node:http`，`main.cjs` 启动并注入 `psRelay {url, token}`），协议自测 11 项全过；宿主 Electron 实测能自动起中继、注入配置。
-- PS UXP 插件：在 PS 25.0.0.37 上实测通过 `docs` / `push`（newDoc、layer）/ `pull`（maxEdge、不弄脏原文档）/ 错误路径，共 9 项断言全过。
-- 画布插件：`build` 与 `typecheck` 通过，产物 `dist/ps.js`；在宿主里安装联动被「本地 Agent 未启动」阻塞（画布打开项目依赖 canvas-agent 进程）。
+- PS UXP 插件：在 PS 25.0.0.37 上实测通过 `docs` / `push`（newDoc、layer）/ `pull`（maxEdge、不弄脏原文档）/ 错误路径；面板已改为「状态 + 文档信息 + 折叠日志/中继地址」的紧凑布局。
+- 画布插件：`build` 与 `typecheck` 通过；节点/面板按规范重做（文档下拉、maxEdge、可编辑提示词、耗时、折叠区），网页版真机联调通过；绑定文档改名/关闭会自动退回当前文档。
 
 ## 文档
 

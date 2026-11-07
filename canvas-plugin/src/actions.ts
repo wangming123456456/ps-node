@@ -11,7 +11,7 @@ export const OPTIMIZE_PROMPT = "在保持构图、主体和文字不变的前提
 
 export type PsStatus = "idle" | "pushing" | "inPS" | "pulling" | "optimizing" | "done" | "error";
 
-export type PsSettings = { baseUrl: string; token: string; maxEdge: number; doc: string };
+export type PsSettings = { baseUrl: string; token: string; maxEdge: number; doc: string; prompt: string };
 
 export type PsDoc = { name: string; width: number; height: number };
 
@@ -23,6 +23,7 @@ export async function loadSettings(ctx: CanvasNodeContext): Promise<PsSettings> 
         token: saved.token || injected.token || "",
         maxEdge: typeof saved.maxEdge === "number" ? saved.maxEdge : DEFAULT_MAX_EDGE,
         doc: saved.doc || "",
+        prompt: typeof saved.prompt === "string" && saved.prompt.trim() ? saved.prompt : OPTIMIZE_PROMPT,
     };
 }
 
@@ -51,6 +52,33 @@ export function readError(ctx: CanvasNodeContext): string {
 
 function errorText(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
+}
+
+/** 绑定的文档改名/关闭时，PS 会报这两种错误，用来触发「退回当前活动文档」。 */
+function isDocumentMissing(error: unknown): boolean {
+    const text = errorText(error);
+    return text.includes("文档不存在") || text.includes("没有打开的文档");
+}
+
+async function pushLayer(settings: PsSettings, image: string, doc: string | undefined, layerName: string) {
+    return runCommand<{ doc: string; layer?: string; width?: number; height?: number }>(endpointOf(settings), "push", {
+        image,
+        mode: "layer",
+        doc,
+        layerName,
+    });
+}
+
+async function pushNewDocument(settings: PsSettings, image: string) {
+    return runCommand<{ doc: string; layer?: string; width?: number; height?: number }>(endpointOf(settings), "push", {
+        image,
+        mode: "newDoc",
+        layerName: layerName(),
+    });
+}
+
+async function pullImage(settings: PsSettings, doc: string | undefined) {
+    return runCommand<{ image: string; doc: string }>(endpointOf(settings), "pull", { doc, maxEdge: settings.maxEdge });
 }
 
 function fail(ctx: CanvasNodeContext, error: unknown): void {
@@ -86,14 +114,21 @@ export async function pushToPs(ctx: CanvasNodeContext, settings: PsSettings): Pr
         return;
     }
     begin(ctx, "pushing");
+    const name = layerName();
     try {
-        const doc = settings.doc || readPsDoc(ctx);
-        const data = await runCommand<{ doc: string; layer?: string; width?: number; height?: number }>(endpointOf(settings), "push", {
-            image,
-            mode: doc ? "layer" : "newDoc",
-            doc,
-            layerName: layerName(),
-        });
+        const target = settings.doc || readPsDoc(ctx);
+        let data;
+        try {
+            data = await pushLayer(settings, image, target || undefined, name);
+        } catch (error) {
+            if (!isDocumentMissing(error)) throw error;
+            try {
+                data = await pushLayer(settings, image, undefined, name);
+            } catch (retryError) {
+                if (!isDocumentMissing(retryError)) throw retryError;
+                data = await pushNewDocument(settings, image);
+            }
+        }
         ctx.updateMetadata({ psStatus: "inPS", psDoc: data.doc, psLayer: data.layer ?? "", psError: "" });
     } catch (error) {
         fail(ctx, error);
@@ -103,10 +138,13 @@ export async function pushToPs(ctx: CanvasNodeContext, settings: PsSettings): Pr
 export async function pullFromPs(ctx: CanvasNodeContext, settings: PsSettings): Promise<void> {
     begin(ctx, "pulling");
     try {
-        const data = await runCommand<{ image: string; doc: string }>(endpointOf(settings), "pull", {
-            doc: settings.doc || readPsDoc(ctx) || undefined,
-            maxEdge: settings.maxEdge,
-        });
+        let data;
+        try {
+            data = await pullImage(settings, settings.doc || undefined);
+        } catch (error) {
+            if (!isDocumentMissing(error)) throw error;
+            data = await pullImage(settings, undefined);
+        }
         ctx.updateMetadata({ content: data.image, psStatus: "done", psDoc: data.doc, psError: "" });
     } catch (error) {
         fail(ctx, error);
@@ -117,11 +155,15 @@ export async function pullFromPs(ctx: CanvasNodeContext, settings: PsSettings): 
 export async function optimizeInPs(ctx: CanvasNodeContext, settings: PsSettings): Promise<void> {
     begin(ctx, "optimizing");
     try {
-        const pulled = await runCommand<{ image: string; doc: string }>(endpointOf(settings), "pull", {
-            doc: settings.doc || readPsDoc(ctx) || undefined,
-            maxEdge: settings.maxEdge,
-        });
-        const generated = await ctx.ai.generateImage(OPTIMIZE_PROMPT, { references: [pulled.image] });
+        const pulled = await (async () => {
+            try {
+                return await pullImage(settings, settings.doc || undefined);
+            } catch (error) {
+                if (!isDocumentMissing(error)) throw error;
+                return await pullImage(settings, undefined);
+            }
+        })();
+        const generated = await ctx.ai.generateImage(settings.prompt.trim() || OPTIMIZE_PROMPT, { references: [pulled.image] });
         const image = generated.images[0];
         if (!image) throw new Error("AI 没有返回图片");
         const pushed = await runCommand<{ doc: string; layer?: string }>(endpointOf(settings), "push", {

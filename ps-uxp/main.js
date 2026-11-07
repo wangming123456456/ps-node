@@ -19,6 +19,7 @@ const POLL_TIMEOUT_MS = 25000;
 
 const relay = { url: "http://localhost:23310", token: "" };
 let polling = false;
+let relayConnected = false;
 
 // ---------------------------------------------------------------------------
 // 小工具
@@ -39,13 +40,20 @@ function log(line) {
     if (!node) return;
     const time = new Date().toLocaleTimeString("zh-CN");
     node.textContent = `${time}  ${line}\n` + node.textContent;
+    if (/失败|中断|错误|不存在/.test(line)) {
+        const section = el("log-section");
+        if (section) section.classList.add("open");
+    }
 }
 
-function setStatus(connected, label) {
+function setStatus(kind, label) {
+    relayConnected = kind === "ok";
     const dot = el("dot");
     const status = el("status");
-    if (dot) dot.className = connected ? "dot on" : "dot";
+    if (dot) dot.className = kind === "ok" ? "dot ok" : kind === "error" ? "dot error" : "dot";
     if (status) status.textContent = label;
+    const stateNode = el("doc-state");
+    if (stateNode) stateNode.textContent = relayConnected ? "中继已连接" : "中继未连接";
 }
 
 // ---------------------------------------------------------------------------
@@ -273,12 +281,13 @@ async function connect() {
         if (!response.ok) throw new Error(`中继返回 ${response.status}`);
         const data = await response.json();
         const psConnected = Boolean(data.photoshop && data.photoshop.connected);
-        setStatus(true, psConnected ? "已连接 · 中继在线" : "已连接 · 等 PS 通道");
+        setStatus("ok", psConnected ? "已连接 · 中继在线" : "已连接");
         log(`连接成功：${relay.url}`);
         console.log("[ps-node] connected: " + relay.url);
+        refreshDocumentInfo();
         void startPolling();
     } catch (error) {
-        setStatus(false, "连接失败");
+        setStatus("error", "连接失败");
         log(`连接失败：${messageOf(error)}`);
         console.log("[ps-node] connect failed: " + messageOf(error));
         // 中继可能比 PS 晚启动，失败时自动重试
@@ -306,8 +315,9 @@ async function startPolling() {
             const result = await handle(job.command, job.payload);
             await request("/api/result", { method: "POST", body: JSON.stringify(Object.assign({ id: job.id }, result)) });
             if (result.ok === false) log(`命令失败：${result.error}`);
+            refreshDocumentInfo();
         } catch (error) {
-            setStatus(false, "已断开");
+            setStatus("error", "已断开");
             log(`长轮询中断：${messageOf(error)}`);
             await sleep(2000);
         }
@@ -342,14 +352,24 @@ async function handle(command, payload) {
     }
 }
 
-async function showDocs() {
-    const result = await handle("docs", {});
-    if (result.ok) {
-        const names = result.data.docs.map((doc) => doc.name).join("、");
-        log(`文档：${names || "没有打开的文档"}`);
-    } else {
-        log(`读取失败：${result.error}`);
+/** 直接在 PS 里读当前文档信息，不占用中继命令通道。 */
+function refreshDocumentInfo() {
+    const nameNode = el("doc-name");
+    const metaNode = el("doc-meta");
+    const stateNode = el("doc-state");
+    let name = "没有打开的文档";
+    let meta = "";
+    try {
+        const doc = app.activeDocument;
+        name = doc.name;
+        const layerCount = doc.layers ? doc.layers.length : 0;
+        meta = `${doc.width}×${doc.height} · ${layerCount} 个图层`;
+    } catch (error) {
+        // 没有打开的文档
     }
+    if (nameNode) nameNode.textContent = name;
+    if (metaNode) metaNode.textContent = meta;
+    if (stateNode) stateNode.textContent = relayConnected ? "中继已连接" : "中继未连接";
 }
 
 // ---------------------------------------------------------------------------
@@ -368,11 +388,20 @@ entrypoints.setup({
 
 function boot() {
     loadRelay();
-    setStatus(false, "未连接");
+    setStatus("idle", "未连接");
+    refreshDocumentInfo();
     const connectButton = el("connect");
     if (connectButton) connectButton.addEventListener("click", () => void connect());
-    const docsButton = el("docs");
-    if (docsButton) docsButton.addEventListener("click", () => void showDocs());
+    const applyButton = el("apply");
+    if (applyButton) applyButton.addEventListener("click", () => void connect());
+    const refreshButton = el("refresh");
+    if (refreshButton) refreshButton.addEventListener("click", () => refreshDocumentInfo());
+    const logToggle = el("log-toggle");
+    if (logToggle) logToggle.addEventListener("click", () => el("log-section").classList.toggle("open"));
+    const relayToggle = el("relay-toggle");
+    if (relayToggle) relayToggle.addEventListener("click", () => el("relay-section").classList.toggle("open"));
+    // 文档信息随 PS 操作变化，定期刷新
+    window.setInterval(refreshDocumentInfo, 3000);
     // 中继允许「无 Origin」的本机客户端免 token 连接（PS 侧就是这种），所以启动即自动连。
     setTimeout(() => {
         if (!polling) void connect();

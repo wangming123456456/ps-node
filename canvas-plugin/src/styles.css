@@ -1,0 +1,347 @@
+/* PS 节点 UI：颜色全部来自画布主题变量（由 JS 按 ctx.theme 注入），不硬编码黑白。 */
+
+.ps-root {
+    color: var(--ps-text);
+    font-size: 12px;
+    line-height: 1.5;
+    font-family: inherit;
+    -webkit-font-smoothing: antialiased;
+}
+
+/* ---------------- 节点卡片 ---------------- */
+
+.ps-node {
+    position: relative;
+    height: 100%;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.ps-node__empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    color: var(--ps-placeholder);
+    text-align: center;
+    line-height: 1.7;
+    font-size: 12px;
+}
+
+.ps-node__image {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    border-radius: 8px;
+    display: block;
+}
+
+.ps-node__head {
+    position: absolute;
+    top: 8px;
+    left: 10px;
+    right: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--ps-muted);
+    font-size: 11px;
+    pointer-events: none;
+}
+
+.ps-node__timer {
+    margin-left: auto;
+    font-variant-numeric: tabular-nums;
+}
+
+.ps-node__foot {
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    bottom: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 11px;
+    pointer-events: none;
+}
+
+.ps-node__meta {
+    color: var(--ps-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.ps-node__error {
+    color: #ef4444;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ---------------- 状态点 ---------------- */
+
+.ps-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--ps-muted);
+    flex: none;
+}
+
+.ps-dot--ok {
+    background: #22c55e;
+}
+
+.ps-dot--busy {
+    background: #f59e0b;
+}
+
+.ps-dot--error {
+    background: #ef4444;
+}
+
+/* ---------------- 面板 ---------------- */
+
+.ps-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 0 2px;
+}
+
+.ps-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.ps-row--between {
+    justify-content: space-between;
+}
+
+.ps-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--ps-muted);
+    min-width: 0;
+}
+
+.ps-spacer {
+    flex: 1;
+}
+
+.ps-textbtn {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--ps-muted);
+    font: inherit;
+    font-size: 12px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.ps-textbtn:hover:not(:disabled) {
+    background: var(--ps-hover);
+    color: var(--ps-text);
+}
+
+.ps-textbtn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.ps-select,
+.ps-input {
+    height: 32px;
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    padding: 0 8px;
+    border: 1px solid var(--ps-stroke);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--ps-text);
+    font: inherit;
+    font-size: 12px;
+}
+
+.ps-select:focus,
+.ps-input:focus {
+    outline: none;
+    border-color: var(--ps-muted);
+}
+
+.ps-select option {
+    background: var(--ps-panel);
+    color: var(--ps-text);
+}
+
+.ps-seg {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    flex: none;
+}
+
+.ps-seg button {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--ps-muted);
+    font: inherit;
+    font-size: 11px;
+    padding: 5px 7px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-variant-numeric: tabular-nums;
+}
+
+.ps-seg button:hover {
+    background: var(--ps-hover);
+    color: var(--ps-text);
+}
+
+.ps-seg button[aria-pressed="true"] {
+    background: var(--ps-active);
+    color: var(--ps-text);
+}
+
+.ps-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.ps-primary {
+    flex: 1;
+    height: 34px;
+    border: 0;
+    border-radius: 8px;
+    background: var(--ps-text);
+    color: var(--ps-panel);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.ps-primary:hover:not(:disabled) {
+    opacity: 0.88;
+}
+
+.ps-primary:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.ps-ghost {
+    flex: 1;
+    height: 34px;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--ps-text);
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.ps-ghost:hover:not(:disabled) {
+    background: var(--ps-hover);
+}
+
+.ps-ghost:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+.ps-hint {
+    color: var(--ps-muted);
+    font-size: 11px;
+    line-height: 1.5;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ps-error {
+    color: #ef4444;
+    font-size: 11px;
+    line-height: 1.5;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ---------------- 折叠区 ---------------- */
+
+.ps-details {
+    border-radius: 8px;
+}
+
+.ps-details > summary {
+    list-style: none;
+    cursor: pointer;
+    color: var(--ps-muted);
+    font-size: 12px;
+    padding: 2px 0;
+    user-select: none;
+}
+
+.ps-details > summary::-webkit-details-marker {
+    display: none;
+}
+
+.ps-details > summary::before {
+    content: "›";
+    display: inline-block;
+    width: 12px;
+    transition: transform 0.15s ease;
+}
+
+.ps-details[open] > summary {
+    color: var(--ps-text);
+}
+
+.ps-details[open] > summary::before {
+    transform: rotate(90deg);
+}
+
+.ps-details__body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px 0 2px;
+}
+
+.ps-textarea {
+    width: 100%;
+    box-sizing: border-box;
+    min-height: 66px;
+    resize: vertical;
+    padding: 8px;
+    border: 1px solid var(--ps-stroke);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--ps-text);
+    font: inherit;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.ps-textarea:focus {
+    outline: none;
+    border-color: var(--ps-muted);
+}
