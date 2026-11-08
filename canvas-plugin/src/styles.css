@@ -279,7 +279,205 @@
     font-size: 11px;
 }
 
-/* ---------------- 折叠区 ---------------- */
+/* ---------------- 设置浮层 ---------------- */
+
+.ps-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 2147483000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--ps-text);
+    font-size: 12px;
+    line-height: 1.5;
+    font-family: inherit;
+    -webkit-font-smoothing: antialiased;
+}
+
+.ps-modal__backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.28);
+}
+
+.ps-modal__card {
+    position: relative;
+    width: 360px;
+    max-width: calc(100vw - 32px);
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px;
+    border: 1px solid var(--ps-stroke);
+    border-radius: 12px;
+    background: var(--ps-panel);
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.28);
+}
+
+.ps-modal__head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ps-modal__close {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--ps-muted);
+    font-size: 16px;
+    line-height: 1;
+    width: 24px;
+    height: 24px;
+    border-radius: 6px;
+    cursor: pointer;
+    flex: none;
+}
+
+.ps-modal__close:hover {
+    background: var(--ps-hover);
+    color: var(--ps-text);
+}
+
+.ps-modal__body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.ps-modal__label {
+    color: var(--ps-muted);
+    font-size: 11px;
+}
+
+.ps-modal__hint {
+    color: var(--ps-muted);
+    font-size: 11px;
+    line-height: 1.6;
+}
+
+.ps-modal__row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.ps-modal .ps-select {
+    height: 32px;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0 9px;
+    border: 1px solid var(--ps-stroke);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--ps-text);
+    font: inherit;
+    font-size: 12px;
+}
+
+.ps-modal .ps-input {
+    height: 30px;
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0 9px;
+    border: 1px solid var(--ps-stroke);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--ps-text);
+    font: inherit;
+    font-size: 12px;
+}
+
+.ps-modal .ps-select:focus,
+.ps-modal .ps-input:focus {
+    outline: none;
+    border-color: var(--ps-muted);
+}
+
+.ps-modal .ps-select option {
+    background: var(--ps-panel);
+    color: var(--ps-text);
+}
+
+.ps-modal .ps-seg {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.ps-modal .ps-seg button {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--ps-muted);
+    font: inherit;
+    font-size: 11px;
+    padding: 4px 9px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-variant-numeric: tabular-nums;
+}
+
+.ps-modal .ps-seg button:hover {
+    background: var(--ps-hover);
+    color: var(--ps-text);
+}
+
+.ps-modal .ps-seg button[aria-pressed="true"] {
+    color: var(--ps-text);
+    font-weight: 600;
+}
+
+.ps-modal .ps-textbtn {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--ps-muted);
+    font: inherit;
+    font-size: 11px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.ps-modal .ps-textbtn:hover {
+    background: var(--ps-hover);
+    color: var(--ps-text);
+}
+
+.ps-modal .ps-details > summary {
+    list-style: none;
+    cursor: pointer;
+    color: var(--ps-muted);
+    font-size: 11px;
+    padding: 2px 0;
+    user-select: none;
+}
+
+.ps-modal .ps-details > summary::-webkit-details-marker {
+    display: none;
+}
+
+.ps-modal .ps-details > summary::before {
+    content: "›";
+    display: inline-block;
+    width: 12px;
+}
+
+.ps-modal .ps-details[open] > summary::before {
+    transform: rotate(90deg);
+}
+
+.ps-modal .ps-details__body {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 8px 0 2px;
+}
+
 
 .ps-details {
     border-radius: 8px;

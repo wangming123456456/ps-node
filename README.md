@@ -99,7 +99,7 @@ UXP 第三方插件没有签名安装包，走「开发者模式 + 手动放目�
 方式 A：公网（推荐，别的机器直接用）
 
 ```
-https://cdn.jsdelivr.net/gh/wangming123456456/ps-node@v0.1.11/dist/ps.js
+https://cdn.jsdelivr.net/gh/wangming123456456/ps-node@v0.1.12/dist/ps.js
 ```
 
 方式 B：本地静态服务（改了源码后用这个）
@@ -126,10 +126,13 @@ node -e "const http=require('http'),fs=require('fs'),path=require('path');http.c
 
 ### 画布侧 PS 节点
 
-| 操作 | 作用 |
+节点下方不再挂面板；选中文档后点悬浮工具栏的「设置」（或双击节点）打开设置浮层：
+
+| 设置项 | 作用 |
 |---|---|
 | 目标文档 | 推送到哪个 PS 文档；默认「跟随当前文档」 |
 | 输出尺寸 | 取回时的最长边（1024 / 1536 / 2048 / 原图） |
+| 中继地址 | 修改中继 url/token 并测试连接 |
 | 推送 | 把上游生成图（没有则用节点自身内容）贴进 PS 新图层 |
 | 取回 | 把 PS 当前文档画面拉回节点内容 |
 

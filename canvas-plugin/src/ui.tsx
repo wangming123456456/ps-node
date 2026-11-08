@@ -1,9 +1,10 @@
 import type { CSSProperties } from "react";
-import { useCallback, useEffect, useRef, useState } from "@infinite-canvas/plugin-sdk";
-import type { CanvasNodeContentProps, CanvasNodeContext, CanvasNodePanelProps, CanvasNodeToolbarItem, CanvasTheme } from "@infinite-canvas/plugin-sdk";
+import { useEffect, useRef, useState } from "@infinite-canvas/plugin-sdk";
+import type { CanvasNodeContentProps, CanvasNodeContext, CanvasNodeToolbarItem, CanvasTheme } from "@infinite-canvas/plugin-sdk";
 
-import { checkHealth, loadSettings, pullFromPs, pushToPs, readError, readStatus, refreshDocs, saveSettings, type PsDoc, type PsSettings } from "./actions";
+import { loadSettings, pullFromPs, pushToPs, readError, readStatus, type PsSettings } from "./actions";
 import { startPsRequestWorker } from "./ps-requests";
+import { openSettingsOverlay } from "./settings";
 
 const STATUS_LABELS: Record<string, string> = {
     idle: "未连接",
@@ -20,7 +21,8 @@ const RUNNING_LABELS: Record<string, string> = {
 };
 
 const RUNNING_STATUSES = new Set(["pushing", "pulling"]);
-const MAX_EDGE_OPTIONS = [1024, 1536, 2048, 0];
+
+const STALE_RUN_MS = 120_000;
 
 /** 只从画布主题取色，浅色/深色主题自动跟随。 */
 function themeVars(theme: CanvasTheme): CSSProperties {
@@ -47,8 +49,6 @@ function readMeta(ctx: CanvasNodeContext, key: string): string {
     return typeof value === "string" ? value : "";
 }
 
-const STALE_RUN_MS = 120_000;
-
 /** 运行态超过 2 分钟视为上次操作已中断（中继/PS 卡住时不至于一直转圈）。 */
 function isStaleRun(ctx: CanvasNodeContext): boolean {
     if (!RUNNING_STATUSES.has(readStatus(ctx))) return false;
@@ -67,28 +67,6 @@ function useElapsed(ctx: CanvasNodeContext, running: boolean): number {
     }, [running, startedAt]);
     if (!running || !startedAt) return 0;
     return Math.max(0, Math.round((Date.now() - startedAt) / 1000));
-}
-
-function useSettings(ctx: CanvasNodeContext) {
-    const [settings, setSettings] = useState<PsSettings | null>(null);
-    // ctx 每次渲染都是新对象，用 ref 避免 effect 反复触发（会不停向 PS 发 docs 命令）
-    const ctxRef = useRef<CanvasNodeContext>(ctx);
-    ctxRef.current = ctx;
-    useEffect(() => {
-        let alive = true;
-        void loadSettings(ctxRef.current).then((value) => {
-            if (alive) setSettings(value);
-        });
-        return () => {
-            alive = false;
-        };
-    }, [ctx.node.id]);
-    const update = useCallback(async (patch: Partial<PsSettings>) => {
-        const next = await saveSettings(ctxRef.current, patch);
-        setSettings(next);
-        return next;
-    }, []);
-    return { settings, update };
 }
 
 function EmptyIcon() {
@@ -156,153 +134,6 @@ export function NodeContent({ ctx }: CanvasNodeContentProps) {
     );
 }
 
-export function NodePanel({ ctx }: CanvasNodePanelProps) {
-    const { settings, update } = useSettings(ctx);
-    const [url, setUrl] = useState("");
-    const [token, setToken] = useState("");
-    const [docs, setDocs] = useState<PsDoc[]>([]);
-    const [docsState, setDocsState] = useState<"idle" | "loading" | "ready" | "error">("idle");
-    const [healthText, setHealthText] = useState("连接中…");
-    const [busy, setBusy] = useState(false);
-
-    const stale = isStaleRun(ctx);
-    const status = stale ? "error" : readStatus(ctx);
-    const error = stale ? "上次操作没有完成，可重新推送或取回" : readError(ctx);
-    const running = RUNNING_STATUSES.has(status);
-    const elapsed = useElapsed(ctx, running);
-    const disabled = !settings || busy;
-
-    useEffect(() => {
-        if (!settings) return;
-        setUrl(settings.baseUrl);
-        setToken(settings.token);
-    }, [settings]);
-
-    const loadDocs = useCallback(async (current: PsSettings) => {
-        setDocsState("loading");
-        try {
-            const list = await refreshDocs(current);
-            setDocs(list);
-            setDocsState("ready");
-            setHealthText("PS 在线");
-        } catch (loadError) {
-            setDocsState("error");
-            setHealthText(`未连接：${loadError instanceof Error ? loadError.message : String(loadError)}`);
-        }
-    }, []);
-
-    useEffect(() => {
-        if (!settings) return;
-        void loadDocs(settings);
-    }, [settings, loadDocs]);
-
-    const runTask = async (task: (ctx: CanvasNodeContext, settings: PsSettings) => Promise<void>) => {
-        setBusy(true);
-        try {
-            await task(ctx, await loadSettings(ctx));
-        } finally {
-            setBusy(false);
-            const current = await loadSettings(ctx);
-            void loadDocs(current);
-        }
-    };
-
-    const testConnection = async () => {
-        if (!settings) return;
-        const result = await checkHealth(await loadSettings(ctx));
-        setHealthText(result?.ok ? (result.photoshop?.connected ? "PS 在线" : "中继在线，PS 未连接") : "中继未连接");
-    };
-
-    const docValue = settings?.doc ?? "";
-    const docOptions = docs.some((doc) => doc.name === docValue) || !docValue ? null : <option value={docValue}>{docValue}</option>;
-
-    return (
-        <div className="ps-root ps-panel" data-canvas-no-zoom onMouseDown={(event) => event.stopPropagation()} style={themeVars(ctx.theme)}>
-            <div className="ps-bar">
-                <span className="ps-status">
-                    <span className={docsState === "error" ? "ps-dot ps-dot--error" : "ps-dot ps-dot--ok"} />
-                    <span className="ps-status__text" title={healthText}>
-                        {healthText}
-                    </span>
-                </span>
-                <button type="button" className="ps-textbtn" disabled={!settings || docsState === "loading"} onClick={() => settings && void loadDocs(settings)}>
-                    {docsState === "loading" ? "刷新中" : "刷新文档"}
-                </button>
-            </div>
-
-            <div className="ps-controls">
-                <select className="ps-select" value={docValue} disabled={disabled} onChange={(event) => void update({ doc: event.target.value })}>
-                    <option value="">跟随当前文档</option>
-                    {docOptions}
-                    {docs.map((doc) => (
-                        <option key={doc.name} value={doc.name}>
-                            {doc.name} · {doc.width}×{doc.height}
-                        </option>
-                    ))}
-                </select>
-                <div className="ps-seg" role="group" aria-label="输出尺寸">
-                    {MAX_EDGE_OPTIONS.map((value) => (
-                        <button key={value} type="button" aria-pressed={settings?.maxEdge === value} onClick={() => void update({ maxEdge: value })}>
-                            {value === 0 ? "原图" : value}
-                        </button>
-                    ))}
-                </div>
-            </div>
-
-            <div className="ps-actions">
-                <button type="button" className="ps-action ps-action--strong" disabled={disabled} onClick={() => void runTask(pushToPs)}>
-                    <PushIcon />
-                    推送
-                </button>
-                <button type="button" className="ps-action" disabled={disabled} onClick={() => void runTask(pullFromPs)}>
-                    <PullIcon />
-                    取回
-                </button>
-                <span className="ps-spacer" />
-                {running ? (
-                    <span className="ps-hint ps-hint--nowrap">
-                        {RUNNING_LABELS[status] ?? "运行中"} · {elapsed}s
-                    </span>
-                ) : error ? (
-                    <span className="ps-error ps-hint--nowrap" title={error}>
-                        {error}
-                    </span>
-                ) : null}
-            </div>
-
-            <div className="ps-hint ps-hint--tip">
-                有选区时：取回=只取选区，推送=贴回选区；没选区时取整幅图。生成 / 改图用图片节点
-            </div>
-
-            <details className="ps-details">
-                <summary>中继设置</summary>
-                <div className="ps-details__body">
-                    <input
-                        className="ps-input"
-                        value={url}
-                        placeholder="http://localhost:23310"
-                        onChange={(event) => setUrl(event.target.value)}
-                        onBlur={() => url !== settings?.baseUrl && void update({ baseUrl: url })}
-                    />
-                    <input
-                        className="ps-input"
-                        value={token}
-                        placeholder="token（宿主注入，可留空）"
-                        onChange={(event) => setToken(event.target.value)}
-                        onBlur={() => token !== settings?.token && void update({ token })}
-                    />
-                    <div className="ps-row">
-                        <span className="ps-spacer" />
-                        <button type="button" className="ps-textbtn" disabled={!settings} onClick={() => void testConnection()}>
-                            测试连接
-                        </button>
-                    </div>
-                </div>
-            </details>
-        </div>
-    );
-}
-
 function toolbarAction(ctx: CanvasNodeContext, id: string, label: string, icon: string, task: (ctx: CanvasNodeContext, settings: PsSettings) => Promise<void>): CanvasNodeToolbarItem {
     return {
         id,
@@ -319,5 +150,12 @@ export function nodeToolbar(ctx: CanvasNodeContext): CanvasNodeToolbarItem[] {
     return [
         toolbarAction(ctx, "ps-push", "推送", "⬆️", pushToPs),
         toolbarAction(ctx, "ps-pull", "取回", "⬇️", pullFromPs),
+        {
+            id: "ps-settings",
+            title: "设置",
+            label: "设置",
+            icon: "⚙️",
+            onClick: () => openSettingsOverlay(ctx),
+        },
     ];
 }
