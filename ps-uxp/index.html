@@ -4,17 +4,26 @@
         <meta charset="UTF-8" />
         <title>PS 节点</title>
         <style>
+            /* ============================================================
+               UI 规范（严格统一）
+               间距：卡片间距 5 / 页面内边距 12 / 卡片内边距 12 / 内部行距 8
+               圆角：控件 8 / 卡片 12 / 预览 14
+               控件：高度 32，输入类=单层深色填充无边框
+               字号：正文 12 / 辅助 11.5 / 提示 10.5 / 区块标题 12.5
+               ============================================================ */
             :root {
                 color-scheme: dark;
                 --text: #ededed;
                 --muted: rgba(255, 255, 255, 0.55);
                 --placeholder: rgba(255, 255, 255, 0.32);
-                --stroke: rgba(255, 255, 255, 0.12);
+                --stroke: rgba(255, 255, 255, 0.14);
                 --hover: rgba(255, 255, 255, 0.08);
-                --active: rgba(255, 255, 255, 0.14);
+                --active: rgba(255, 255, 255, 0.16);
                 --panel: #1a1a1a;
-                --card: rgba(255, 255, 255, 0.05);
-                --field: rgba(255, 255, 255, 0.08);
+                --card: #242424;
+                --input: #1b1b1b;
+                --btn: #2e2e2e;
+                --preview: #151515;
             }
 
             @media (prefers-color-scheme: light) {
@@ -23,12 +32,14 @@
                     --text: #1a1a1a;
                     --muted: rgba(0, 0, 0, 0.52);
                     --placeholder: rgba(0, 0, 0, 0.34);
-                    --stroke: rgba(0, 0, 0, 0.12);
+                    --stroke: rgba(0, 0, 0, 0.14);
                     --hover: rgba(0, 0, 0, 0.06);
                     --active: rgba(0, 0, 0, 0.1);
                     --panel: #f4f4f4;
-                    --card: rgba(0, 0, 0, 0.04);
-                    --field: rgba(0, 0, 0, 0.06);
+                    --card: #ffffff;
+                    --input: #efefef;
+                    --btn: #e8e8e8;
+                    --preview: #e9e9e9;
                 }
             }
 
@@ -51,12 +62,17 @@
             .app {
                 display: flex;
                 flex-direction: column;
-                gap: 12px;
+                gap: 8px;
                 height: 100vh;
                 box-sizing: border-box;
-                padding: 12px 12px 14px;
+                padding: 12px;
                 overflow-y: auto;
                 overflow-x: hidden;
+            }
+
+            /* 设置页：卡片间距严格 5px */
+            #view-settings {
+                gap: 5px;
             }
 
             .app::-webkit-scrollbar {
@@ -122,7 +138,7 @@
 
             .textbtn {
                 appearance: none;
-                border: 1px solid transparent;
+                border: 0;
                 background: transparent;
                 color: var(--muted);
                 font: inherit;
@@ -152,9 +168,9 @@
                 gap: 4px;
                 height: 32px;
                 padding: 0 14px;
-                border: 1px solid var(--stroke);
-                border-radius: 9px;
-                background: var(--card);
+                border: 0;
+                border-radius: 8px;
+                background: var(--btn);
                 color: var(--text);
                 font: inherit;
                 font-size: 12px;
@@ -164,7 +180,7 @@
             }
 
             .btn:hover:not(:disabled) {
-                background: var(--hover);
+                filter: brightness(1.12);
             }
 
             .btn:disabled {
@@ -173,15 +189,9 @@
             }
 
             .btn--primary {
-                border-color: transparent;
                 background: var(--text);
                 color: var(--panel);
                 font-weight: 600;
-            }
-
-            .btn--primary:hover:not(:disabled) {
-                background: var(--text);
-                opacity: 0.88;
             }
 
             .btn--grow {
@@ -218,7 +228,6 @@
                 gap: 8px;
                 min-width: 0;
                 flex: none;
-                padding: 0 2px;
             }
 
             .docline__name {
@@ -244,8 +253,7 @@
                 flex: 1 1 170px;
                 min-height: 150px;
                 border-radius: 14px;
-                border: 1px solid var(--stroke);
-                background: var(--panel);
+                background: var(--preview);
                 overflow: hidden;
             }
 
@@ -259,7 +267,7 @@
             }
 
             .preview__img--result {
-                background: var(--panel);
+                background: var(--preview);
             }
 
             .preview__empty {
@@ -298,11 +306,10 @@
             .controls {
                 display: flex;
                 flex-direction: column;
-                gap: 10px;
+                gap: 8px;
                 flex: none;
                 padding: 12px;
-                border: 1px solid var(--stroke);
-                border-radius: 14px;
+                border-radius: 12px;
                 background: var(--card);
             }
 
@@ -318,7 +325,7 @@
                 height: 18px;
                 flex: none;
                 padding: 0;
-                border: 1px solid var(--stroke);
+                border: 0;
                 border-radius: 999px;
                 background: var(--active);
                 cursor: pointer;
@@ -327,13 +334,12 @@
 
             .switch[aria-pressed="true"] {
                 background: var(--text);
-                border-color: transparent;
             }
 
             .switch__thumb {
                 position: absolute;
-                top: 1px;
-                left: 1px;
+                top: 2px;
+                left: 2px;
                 width: 14px;
                 height: 14px;
                 border-radius: 50%;
@@ -354,7 +360,7 @@
             .check {
                 display: inline-flex;
                 align-items: center;
-                gap: 6px;
+                gap: 8px;
                 color: var(--muted);
                 font-size: 11.5px;
                 cursor: default;
@@ -367,17 +373,18 @@
                 height: 32px;
                 box-sizing: border-box;
                 padding: 0 10px;
-                border: 1px solid var(--stroke);
-                border-radius: 9px;
-                background: transparent;
+                border: 0;
+                border-radius: 8px;
+                background: var(--input);
                 color: var(--text);
                 font: inherit;
                 font-size: 12px;
+                flex: none;
             }
 
             .input:focus {
                 outline: none;
-                border-color: var(--muted);
+                box-shadow: inset 0 0 0 1px var(--muted);
             }
 
             .input option {
@@ -392,18 +399,19 @@
                 min-height: 52px;
                 resize: none;
                 padding: 8px 10px;
-                border: 1px solid var(--stroke);
-                border-radius: 10px;
-                background: transparent;
+                border: 0;
+                border-radius: 8px;
+                background: var(--input);
                 color: var(--text);
                 font: inherit;
                 font-size: 12px;
                 line-height: 1.5;
+                flex: none;
             }
 
             .textarea:focus {
                 outline: none;
-                border-color: var(--muted);
+                box-shadow: inset 0 0 0 1px var(--muted);
             }
 
             .gen__state {
@@ -431,22 +439,14 @@
             .settings__group {
                 display: flex;
                 flex-direction: column;
-                gap: 10px;
+                gap: 8px;
                 flex: none;
-                padding: 14px;
-                border: 1px solid var(--stroke);
-                border-radius: 14px;
+                padding: 12px;
+                border-radius: 12px;
                 background: var(--card);
             }
 
             .settings__group > * {
-                flex: none;
-            }
-
-            .settings__group .field,
-            .settings__group .check,
-            .settings__group .seg,
-            .settings__group .input {
                 flex: none;
             }
 
@@ -467,25 +467,28 @@
                 color: var(--muted);
             }
 
+            /* 分段控件：整行三等分，严格对齐 */
             .seg {
-                display: inline-flex;
-                gap: 4px;
+                display: flex;
+                width: 100%;
+                gap: 2px;
                 padding: 2px;
-                border-radius: 10px;
-                background: var(--field);
-                align-self: flex-start;
+                box-sizing: border-box;
+                border-radius: 9px;
+                background: var(--input);
             }
 
             .seg button {
                 appearance: none;
+                flex: 1;
+                min-width: 0;
                 border: 0;
                 background: transparent;
                 color: var(--muted);
                 font: inherit;
                 font-size: 12px;
                 height: 28px;
-                padding: 0 12px;
-                border-radius: 8px;
+                border-radius: 7px;
                 cursor: pointer;
                 font-variant-numeric: tabular-nums;
             }
@@ -507,9 +510,9 @@
                 min-height: 64px;
                 max-height: 140px;
                 overflow: auto;
-                border: 1px solid var(--stroke);
-                border-radius: 10px;
-                background: var(--panel);
+                border: 0;
+                border-radius: 8px;
+                background: var(--input);
                 color: var(--muted);
                 font-size: 10.5px;
                 line-height: 1.5;
@@ -633,7 +636,7 @@
 
             <div class="settings__group">
                 <div class="settings__title">关于</div>
-                <div class="muted" id="settings-about">PS 节点 v0.1.19</div>
+                <div class="muted" id="settings-about">PS 节点 v0.1.20</div>
             </div>
         </div>    </body>
 </html>
