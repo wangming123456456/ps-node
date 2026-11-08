@@ -53,6 +53,29 @@
                 height: 100vh;
                 box-sizing: border-box;
                 padding: 8px;
+                overflow-y: auto;
+                overflow-x: hidden;
+            }
+
+            /* 面板高度不够时整页滚动，不让内容互相挤压 */
+            .bar,
+            .docline,
+            .row,
+            .collapse {
+                flex: none;
+            }
+
+            .app::-webkit-scrollbar {
+                width: 6px;
+            }
+
+            .app::-webkit-scrollbar-thumb {
+                background: var(--stroke);
+                border-radius: 3px;
+            }
+
+            .app::-webkit-scrollbar-track {
+                background: transparent;
             }
 
             .row {
@@ -218,8 +241,8 @@
 
             .preview {
                 position: relative;
-                flex: 1;
-                min-height: 120px;
+                flex: 1 1 160px;
+                min-height: 140px;
                 border-radius: 10px;
                 border: 1px solid var(--stroke);
                 background: var(--panel);
