@@ -1,7 +1,7 @@
 {
     "id": "com.wangming.psnode",
     "name": "PS 节点",
-    "version": "0.1.21",
+    "version": "0.1.22",
     "main": "index.html",
     "manifestVersion": 6,
     "host": { "app": "PS", "minVersion": "24.4.0" },

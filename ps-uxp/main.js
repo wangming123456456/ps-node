@@ -1043,11 +1043,11 @@ async function checkRelayHealth() {
         const data = await response.json();
         const psConnected = Boolean(data.photoshop && data.photoshop.connected);
         if (dot) dot.className = "dot ok";
-        if (status) status.textContent = psConnected ? "已连接" : "中继在线，PS 未连接";
+        if (status) status.textContent = psConnected ? "已连接" : "未连接";
         return true;
     } catch (error) {
         if (dot) dot.className = "dot error";
-        if (status) status.textContent = `未连接：${messageOf(error)}`;
+        if (status) status.textContent = "未连接";
         return false;
     }
 }
