@@ -42,7 +42,9 @@ function log(line) {
     node.textContent = `${time}  ${line}\n` + node.textContent;
     if (/失败|中断|错误|不存在|选区/.test(line)) {
         const section = el("log-section");
+        const body = el("log-body");
         if (section) section.classList.add("open");
+        if (body) body.hidden = false;
     }
 }
 
@@ -634,7 +636,7 @@ let lastDocSignature = "";
 /** 重新渲染当前文档缩略图（小尺寸导出，不影响原文档）。 */
 async function refreshShot() {
     const image = el("shot-image");
-    const empty = el("shot-empty");
+    const empty = el("preview-empty");
     if (!image || !empty) return;
     try {
         const doc = app.activeDocument;
@@ -822,16 +824,13 @@ async function renderImage() {
         lastRenderSelection = selectionBounds;
         const genApply = el("gen-apply");
         if (genApply) genApply.textContent = selectionBounds ? "贴回选区" : "添加到图层";
-        const resultCard = el("result-card");
-        if (resultCard) resultCard.hidden = false;
-        const resultEmpty = el("result-empty");
-        if (resultEmpty) resultEmpty.hidden = true;
+        const overlay = el("result-overlay");
+        if (overlay) overlay.hidden = false;
         const preview = el("preview");
         if (preview) {
             preview.src = lastRender;
             preview.hidden = false;
         }
-        activateTab("display");
         setGenState(selectionBounds ? "渲染完成（选区）" : "渲染完成");
         log(selectionBounds ? "渲染完成，可贴回选区" : "渲染完成");
     } catch (error) {
@@ -858,6 +857,11 @@ async function applyRender() {
             log(`已添加到图层：${data.layer}`);
         }
         refreshDocumentInfo();
+        const preview = el("preview");
+        if (preview) preview.hidden = true;
+        const overlay = el("result-overlay");
+        if (overlay) overlay.hidden = true;
+        void refreshShot();
     } catch (error) {
         setGenState(messageOf(error), true);
         log(`添加到图层失败：${messageOf(error)}`);
@@ -869,18 +873,6 @@ async function applyRender() {
 // ---------------------------------------------------------------------------
 // 面板
 // ---------------------------------------------------------------------------
-
-function activateTab(name) {
-    const isDisplay = name === "display";
-    const displayPane = el("tab-display");
-    const configPane = el("tab-config");
-    if (displayPane) displayPane.hidden = !isDisplay;
-    if (configPane) configPane.hidden = isDisplay;
-    const displayBtn = el("tab-display-btn");
-    const configBtn = el("tab-config-btn");
-    if (displayBtn) displayBtn.classList.toggle("tab--active", isDisplay);
-    if (configBtn) configBtn.classList.toggle("tab--active", !isDisplay);
-}
 
 entrypoints.setup({
     panels: {
@@ -902,26 +894,48 @@ function boot() {
     const applyButton = el("apply");
     if (applyButton) applyButton.addEventListener("click", () => void connect());
     const refreshButton = el("refresh");
-    if (refreshButton) refreshButton.addEventListener("click", () => refreshDocumentInfo());
+    if (refreshButton)
+        refreshButton.addEventListener("click", () => {
+            refreshDocumentInfo();
+            void refreshShot();
+        });
     const renderButton = el("render");
     if (renderButton) renderButton.addEventListener("click", () => void renderImage());
     const genApplyButton = el("gen-apply");
     if (genApplyButton) genApplyButton.addEventListener("click", () => void applyRender());
+    const resultClose = el("result-close");
+    if (resultClose)
+        resultClose.addEventListener("click", () => {
+            const preview = el("preview");
+            if (preview) preview.hidden = true;
+            const overlay = el("result-overlay");
+            if (overlay) overlay.hidden = true;
+            void refreshShot();
+        });
     const shotRefresh = el("shot-refresh");
     if (shotRefresh) shotRefresh.addEventListener("click", () => void refreshShot());
     const sendCanvas = el("send-canvas");
     if (sendCanvas) sendCanvas.addEventListener("click", () => void sendCurrentToCanvas());
     const recvCanvas = el("recv-canvas");
     if (recvCanvas) recvCanvas.addEventListener("click", () => void receiveFromCanvas());
-    const tabDisplay = el("tab-display-btn");
-    if (tabDisplay) tabDisplay.addEventListener("click", () => activateTab("display"));
-    const tabConfig = el("tab-config-btn");
-    if (tabConfig) tabConfig.addEventListener("click", () => activateTab("config"));
-    activateTab("display");
     const logToggle = el("log-toggle");
-    if (logToggle) logToggle.addEventListener("click", () => el("log-section").classList.toggle("open"));
+    if (logToggle)
+        logToggle.addEventListener("click", () => {
+            const body = el("log-body");
+            const section = el("log-section");
+            if (!body) return;
+            body.hidden = !body.hidden;
+            if (section) section.classList.toggle("open", !body.hidden);
+        });
     const relayToggle = el("relay-toggle");
-    if (relayToggle) relayToggle.addEventListener("click", () => el("relay-section").classList.toggle("open"));
+    if (relayToggle)
+        relayToggle.addEventListener("click", () => {
+            const body = el("relay-body");
+            const section = el("relay-section");
+            if (!body) return;
+            body.hidden = !body.hidden;
+            if (section) section.classList.toggle("open", !body.hidden);
+        });
     // 文档信息随 PS 操作变化，定期刷新
     window.setInterval(refreshDocumentInfo, 3000);
     // 中继允许「无 Origin」的本机客户端免 token 连接（PS 侧就是这种），所以启动即自动连。

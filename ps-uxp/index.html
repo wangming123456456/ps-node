@@ -6,13 +6,14 @@
         <style>
             :root {
                 color-scheme: dark;
-                --text: #e0e0e0;
-                --muted: rgba(255, 255, 255, 0.58);
-                --placeholder: rgba(255, 255, 255, 0.35);
+                --text: #e8e8e8;
+                --muted: rgba(255, 255, 255, 0.55);
+                --placeholder: rgba(255, 255, 255, 0.3);
                 --stroke: rgba(255, 255, 255, 0.12);
-                --hover: rgba(255, 255, 255, 0.06);
+                --hover: rgba(255, 255, 255, 0.08);
                 --active: rgba(255, 255, 255, 0.14);
-                --panel: #1f1f1f;
+                --panel: #1c1c1c;
+                --field: rgba(255, 255, 255, 0.06);
             }
 
             @media (prefers-color-scheme: light) {
@@ -24,7 +25,8 @@
                     --stroke: rgba(0, 0, 0, 0.12);
                     --hover: rgba(0, 0, 0, 0.05);
                     --active: rgba(0, 0, 0, 0.08);
-                    --panel: #ffffff;
+                    --panel: #f6f6f6;
+                    --field: rgba(0, 0, 0, 0.05);
                 }
             }
 
@@ -36,11 +38,8 @@
                 color: var(--text);
                 font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
                 font-size: 12px;
-                line-height: 1.5;
-            }
-
-            body {
-                overflow-y: auto;
+                line-height: 1.4;
+                overflow: hidden;
             }
 
             [hidden] {
@@ -50,15 +49,16 @@
             .app {
                 display: flex;
                 flex-direction: column;
-                gap: 10px;
-                padding: 10px;
+                gap: 6px;
+                height: 100vh;
                 box-sizing: border-box;
+                padding: 8px;
             }
 
             .row {
                 display: flex;
                 align-items: center;
-                gap: 8px;
+                gap: 6px;
                 min-width: 0;
             }
 
@@ -71,8 +71,8 @@
             }
 
             .dot {
-                width: 7px;
-                height: 7px;
+                width: 6px;
+                height: 6px;
                 border-radius: 50%;
                 background: var(--muted);
                 flex: none;
@@ -102,7 +102,7 @@
                 color: var(--muted);
                 font: inherit;
                 font-size: 11px;
-                padding: 3px 7px;
+                padding: 3px 6px;
                 border-radius: 6px;
                 cursor: pointer;
                 white-space: nowrap;
@@ -121,31 +121,25 @@
 
             .btn {
                 appearance: none;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                gap: 4px;
+                height: 28px;
+                padding: 0 10px;
                 border: 1px solid var(--stroke);
+                border-radius: 8px;
                 background: transparent;
                 color: var(--text);
                 font: inherit;
-                font-size: 12px;
-                height: 30px;
-                padding: 0 12px;
-                border-radius: 8px;
+                font-size: 11px;
                 cursor: pointer;
                 white-space: nowrap;
+                flex: none;
             }
 
             .btn:hover:not(:disabled) {
                 background: var(--hover);
-            }
-
-            .btn--primary {
-                background: var(--active);
-                border-color: transparent;
-                font-weight: 600;
-            }
-
-            .btn--primary:hover:not(:disabled) {
-                background: var(--active);
-                opacity: 0.85;
             }
 
             .btn:disabled {
@@ -153,166 +147,135 @@
                 cursor: not-allowed;
             }
 
-            /* ---------- 顶部：状态 + 标签页 ---------- */
+            .btn--primary {
+                border-color: transparent;
+                background: var(--text);
+                color: var(--panel);
+                font-weight: 600;
+            }
+
+            .btn--primary:hover:not(:disabled) {
+                opacity: 0.86;
+                background: var(--text);
+            }
+
+            .btn--grow {
+                flex: 1;
+            }
 
             .bar {
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
-                gap: 8px;
-                min-height: 22px;
+                gap: 6px;
+                min-height: 20px;
             }
 
             .bar__status {
                 display: flex;
                 align-items: center;
-                gap: 6px;
+                gap: 5px;
                 min-width: 0;
             }
 
             .bar__text {
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
                 font-size: 11px;
                 color: var(--muted);
-            }
-
-            .tabs {
-                display: flex;
-                align-items: stretch;
-                gap: 4px;
-                border-bottom: 1px solid var(--stroke);
-            }
-
-            .tab {
-                appearance: none;
-                border: 0;
-                border-bottom: 2px solid transparent;
-                background: transparent;
-                color: var(--muted);
-                font: inherit;
-                font-size: 12px;
-                padding: 5px 9px 6px;
-                margin-bottom: -1px;
-                cursor: pointer;
-            }
-
-            .tab:hover {
-                color: var(--text);
-            }
-
-            .tab--active {
-                color: var(--text);
-                font-weight: 600;
-                border-bottom-color: var(--text);
-            }
-
-            .pane {
-                display: flex;
-                flex-direction: column;
-                gap: 10px;
-            }
-
-            .pane[hidden] {
-                display: none;
-            }
-
-            .section__title {
-                font-size: 12px;
-                font-weight: 600;
-            }
-
-            /* ---------- 文档 ---------- */
-
-            .doc {
-                display: flex;
-                flex-direction: column;
-                gap: 2px;
-                padding: 9px 10px;
-                border: 1px solid var(--stroke);
-                border-radius: 10px;
-            }
-
-            .doc__main {
-                display: flex;
-                flex-direction: column;
-                gap: 1px;
-                min-width: 0;
-            }
-
-            .doc__name {
-                font-size: 12px;
-                font-weight: 600;
-                white-space: nowrap;
                 overflow: hidden;
                 text-overflow: ellipsis;
+                white-space: nowrap;
             }
 
-            .doc__line {
+            .docline {
                 display: flex;
                 align-items: center;
-                gap: 4px;
+                gap: 5px;
                 min-width: 0;
                 color: var(--muted);
                 font-size: 11px;
             }
 
-            .doc__sep:empty {
-                display: none;
+            .docline__name {
+                color: var(--text);
+                font-size: 11px;
+                font-weight: 600;
+                max-width: 46%;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
             }
 
-            /* ---------- 画面 / 图片区 ---------- */
-
-            .shot {
-                display: flex;
-                flex-direction: column;
-                gap: 8px;
+            .docline__meta,
+            .docline__state {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
             }
 
-            .shot__box {
+            .docline__state {
+                margin-left: auto;
+            }
+
+            .preview {
                 position: relative;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                min-height: 96px;
-                max-height: 200px;
-                overflow: hidden;
+                flex: 1;
+                min-height: 120px;
                 border-radius: 10px;
                 border: 1px solid var(--stroke);
                 background: var(--panel);
-                box-sizing: border-box;
+                overflow: hidden;
             }
 
-            .shot__box--small {
-                min-height: 64px;
-                max-height: 120px;
-            }
-
-            .shot__img {
-                max-width: 100%;
-                max-height: 200px;
+            .preview__img {
+                position: absolute;
+                inset: 0;
+                width: 100%;
+                height: 100%;
                 object-fit: contain;
                 display: block;
             }
 
-            .shot__empty {
+            .preview__img--result {
+                background: var(--panel);
+            }
+
+            .preview__empty {
+                position: absolute;
+                inset: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
                 color: var(--placeholder);
                 font-size: 11px;
             }
 
-            /* ---------- 生成 ---------- */
-
-            .gen {
+            .preview__overlay {
+                position: absolute;
+                left: 0;
+                right: 0;
+                bottom: 0;
                 display: flex;
-                flex-direction: column;
-                gap: 8px;
+                align-items: center;
+                gap: 6px;
+                padding: 8px;
+                background: linear-gradient(to top, color-mix(in srgb, var(--panel) 92%, transparent), transparent);
+            }
+
+            .preview__label {
+                font-size: 11px;
+                color: var(--muted);
+            }
+
+            .section__title {
+                font-size: 11px;
+                font-weight: 600;
+                color: var(--text);
             }
 
             .check {
                 display: inline-flex;
                 align-items: center;
-                gap: 5px;
+                gap: 4px;
                 color: var(--muted);
                 font-size: 11px;
                 cursor: pointer;
@@ -321,15 +284,16 @@
 
             .input {
                 width: 100%;
-                height: 30px;
+                min-width: 0;
+                height: 28px;
                 box-sizing: border-box;
-                padding: 0 9px;
+                padding: 0 8px;
                 border: 1px solid var(--stroke);
                 border-radius: 8px;
                 background: transparent;
                 color: var(--text);
                 font: inherit;
-                font-size: 12px;
+                font-size: 11px;
             }
 
             .input:focus {
@@ -345,16 +309,17 @@
             .textarea {
                 width: 100%;
                 box-sizing: border-box;
-                min-height: 64px;
-                resize: vertical;
-                padding: 7px 9px;
+                height: 52px;
+                min-height: 40px;
+                resize: none;
+                padding: 6px 8px;
                 border: 1px solid var(--stroke);
                 border-radius: 8px;
                 background: transparent;
                 color: var(--text);
                 font: inherit;
-                font-size: 12px;
-                line-height: 1.6;
+                font-size: 11px;
+                line-height: 1.5;
             }
 
             .textarea:focus {
@@ -362,16 +327,21 @@
                 border-color: var(--muted);
             }
 
+            .gen__state {
+                min-width: 0;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
             .gen__state.error {
                 color: #ef4444;
             }
 
-            /* ---------- 折叠区 ---------- */
-
             .collapse {
                 display: flex;
                 flex-direction: column;
-                gap: 2px;
+                gap: 4px;
             }
 
             .collapse__head {
@@ -386,6 +356,7 @@
                 display: flex;
                 align-items: center;
                 gap: 2px;
+                text-align: left;
             }
 
             .collapse__head:hover {
@@ -394,7 +365,7 @@
 
             .collapse__chevron {
                 display: inline-block;
-                width: 12px;
+                width: 10px;
                 transition: transform 0.15s ease;
             }
 
@@ -409,8 +380,8 @@
             .collapse__body {
                 display: none;
                 flex-direction: column;
-                gap: 8px;
-                padding: 4px 0 2px;
+                gap: 6px;
+                padding: 2px 0;
             }
 
             .collapse.open .collapse__body {
@@ -419,16 +390,16 @@
 
             #log {
                 margin: 0;
-                padding: 8px;
-                min-height: 72px;
-                max-height: 200px;
+                padding: 6px;
+                min-height: 56px;
+                max-height: 140px;
                 overflow: auto;
                 border: 1px solid var(--stroke);
                 border-radius: 8px;
                 background: var(--panel);
                 color: var(--muted);
-                font-size: 11px;
-                line-height: 1.6;
+                font-size: 10px;
+                line-height: 1.5;
                 white-space: pre-wrap;
                 word-break: break-word;
             }
@@ -444,89 +415,67 @@
                 <button id="connect" type="button" class="textbtn">连接</button>
             </div>
 
-            <div class="tabs">
-                <button id="tab-display-btn" type="button" class="tab tab--active">画面</button>
-                <button id="tab-config-btn" type="button" class="tab">配置</button>
+            <div class="docline">
+                <span id="doc-name" class="docline__name">没有打开的文档</span>
+                <span id="doc-meta" class="muted"></span>
+                <span id="doc-state" class="docline__state muted"></span>
+                <button id="refresh" type="button" class="textbtn">刷新</button>
             </div>
 
-            <section id="tab-display" class="pane">
-                <div class="doc">
-                    <div class="row row--between">
-                        <div class="doc__main">
-                            <div id="doc-name" class="doc__name">没有打开的文档</div>
-                            <div class="doc__line">
-                                <span id="doc-meta" class="muted"></span>
-                                <span class="doc__sep">·</span>
-                                <span id="doc-state" class="muted"></span>
-                            </div>
-                        </div>
-                        <button id="refresh" type="button" class="textbtn">刷新</button>
-                    </div>
+            <div class="preview">
+                <img id="shot-image" class="preview__img" alt="" hidden />
+                <img id="preview" class="preview__img preview__img--result" alt="" hidden />
+                <span id="preview-empty" class="preview__empty">没有打开的文档</span>
+                <div id="result-overlay" class="preview__overlay" hidden>
+                    <span class="preview__label">生成结果</span>
+                    <span class="spacer"></span>
+                    <button id="gen-apply" type="button" class="btn btn--primary" disabled>添加到图层</button>
+                    <button id="result-close" type="button" class="btn">返回画面</button>
                 </div>
+            </div>
 
-                <div class="shot">
-                    <div class="row row--between">
-                        <span class="section__title">画面</span>
-                        <button id="shot-refresh" type="button" class="textbtn">刷新预览</button>
-                    </div>
-                    <div class="shot__box">
-                        <img id="shot-image" class="shot__img" alt="" hidden />
-                        <span id="shot-empty" class="shot__empty">没有打开的文档</span>
-                    </div>
+            <div class="row">
+                <button id="send-canvas" type="button" class="btn btn--grow">发送到画布</button>
+                <button id="recv-canvas" type="button" class="btn btn--grow">从画布接收</button>
+            </div>
+
+            <div class="row row--between">
+                <span class="section__title">AI 生成</span>
+                <label class="check"><input id="ref-toggle" type="checkbox" checked /><span>参考当前画面</span></label>
+            </div>
+
+            <div class="row">
+                <select id="model-select" class="input">
+                    <option value="">默认模型</option>
+                </select>
+                <button id="render" type="button" class="btn btn--primary">渲染 ▶</button>
+            </div>
+
+            <textarea id="prompt" class="textarea" placeholder="描述你想要的画面…"></textarea>
+
+            <div class="row row--between">
+                <span id="gen-state" class="muted gen__state">就绪</span>
+                <button id="shot-refresh" type="button" class="textbtn">刷新预览</button>
+            </div>
+
+            <div class="collapse" id="log-section">
+                <button class="collapse__head" id="log-toggle" type="button">日志<span class="collapse__chevron">›</span></button>
+                <div class="collapse__body" id="log-body" hidden>
+                    <pre id="log"></pre>
+                </div>
+            </div>
+
+            <div class="collapse" id="relay-section">
+                <button class="collapse__head" id="relay-toggle" type="button">中继地址<span class="collapse__chevron">›</span></button>
+                <div class="collapse__body" id="relay-body" hidden>
+                    <input id="url" class="input" type="text" placeholder="http://localhost:23310" />
+                    <input id="token" class="input" type="text" placeholder="token（中继要求时填写，可留空）" />
                     <div class="row">
-                        <button id="send-canvas" type="button" class="btn btn--primary">发送到画布</button>
                         <span class="spacer"></span>
-                        <button id="recv-canvas" type="button" class="btn">从画布接收</button>
+                        <button id="apply" type="button" class="textbtn">应用并重连</button>
                     </div>
                 </div>
-
-                <div class="gen" id="result-card" hidden>
-                    <div class="row row--between">
-                        <span class="section__title">生成结果</span>
-                        <button id="gen-apply" type="button" class="btn">添加到图层</button>
-                    </div>
-                    <div class="shot__box shot__box--small">
-                        <img id="preview" class="shot__img" alt="" hidden />
-                        <span id="result-empty" class="shot__empty">渲染完成后显示在这里</span>
-                    </div>
-                </div>
-            </section>
-
-            <section id="tab-config" class="pane" hidden>
-                <div class="gen">
-                    <div class="row row--between">
-                        <span class="section__title">AI 生成</span>
-                        <label class="check"><input id="ref-toggle" type="checkbox" checked /><span>参考当前画面</span></label>
-                    </div>
-                    <select id="model-select" class="input">
-                        <option value="">默认模型</option>
-                    </select>
-                    <textarea id="prompt" class="textarea" placeholder="描述你想要的画面…"></textarea>
-                    <div class="row row--between">
-                        <span id="gen-state" class="muted gen__state">就绪</span>
-                        <button id="render" type="button" class="btn btn--primary">渲染</button>
-                    </div>
-                </div>
-
-                <div class="collapse" id="log-section">
-                    <button class="collapse__head" id="log-toggle" type="button">日志<span class="collapse__chevron">›</span></button>
-                    <div class="collapse__body">
-                        <pre id="log"></pre>
-                    </div>
-                </div>
-
-                <div class="collapse" id="relay-section">
-                    <button class="collapse__head" id="relay-toggle" type="button">中继地址<span class="collapse__chevron">›</span></button>
-                    <div class="collapse__body">
-                        <input id="url" class="input" type="text" placeholder="http://localhost:23310" />
-                        <input id="token" class="input" type="text" placeholder="token（中继要求时填写，可留空）" />
-                        <div class="row">
-                            <span class="spacer"></span>
-                            <button id="apply" type="button" class="textbtn">应用并重连</button>
-                        </div>
-                    </div>
-                </div>
-            </section>
+            </div>
         </div>
         <script src="main.js"></script>
     </body>
