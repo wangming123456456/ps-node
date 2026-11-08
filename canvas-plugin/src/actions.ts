@@ -103,25 +103,42 @@ export async function refreshDocs(settings: PsSettings): Promise<PsDoc[]> {
     return data.docs;
 }
 
+/** blob:/http(s) 地址先转成 dataURL：PS 侧只能按 dataURL 写临时文件。 */
+async function toDataUrl(url: string): Promise<string> {
+    if (!url) return "";
+    if (url.startsWith("data:")) return url;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`读取图片失败（${response.status}）`);
+    const blob = await response.blob();
+    return await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
+        reader.onerror = () => reject(new Error("读取图片失败"));
+        reader.readAsDataURL(blob);
+    });
+}
+
 /** 推送源优先级：上游图（图片节点生成结果）→ 下游图（反向连回来）→ 节点自身内容（取回的画面）。 */
-export function readPushImage(ctx: CanvasNodeContext): string {
+export async function readPushImage(ctx: CanvasNodeContext): Promise<string> {
     const imageOf = (node: { metadata?: Record<string, unknown> }) => {
         const content = node.metadata?.content;
         return typeof content === "string" ? content : "";
     };
-    for (const node of ctx.getUpstream()) {
+    const candidates = [...ctx.getUpstream(), ...ctx.getDownstream(), ctx.node];
+    for (const node of candidates) {
         const image = imageOf(node);
-        if (image) return image;
+        if (!image) continue;
+        try {
+            return await toDataUrl(image);
+        } catch {
+            continue;
+        }
     }
-    for (const node of ctx.getDownstream()) {
-        const image = imageOf(node);
-        if (image) return image;
-    }
-    return imageOf(ctx.node);
+    return "";
 }
 
 export async function pushToPs(ctx: CanvasNodeContext, settings: PsSettings): Promise<void> {
-    const image = readPushImage(ctx);
+    const image = await readPushImage(ctx);
     if (!image) {
         ctx.updateMetadata({ psStatus: "error", psError: "没有可推送的图：接一个图片节点，或先从 PS 取回" });
         return;
