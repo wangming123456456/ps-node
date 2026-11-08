@@ -24,7 +24,7 @@ const relay = { url: "http://localhost:23310", token: "" };
 let polling = false;
 let relayConnected = false;
 
-const DEFAULT_SETTINGS = { model: "", reference: true, autoApply: false, previewSize: 512, autoRefresh: true };
+const DEFAULT_SETTINGS = { model: "", reference: true, autoApply: false, previewSize: 512, autoRefresh: true, showReference: true };
 let uxSettings = Object.assign({}, DEFAULT_SETTINGS);
 let pendingAutoApply = false;
 
@@ -636,7 +636,8 @@ function refreshDocumentInfo() {
         const layerCount = doc.layers ? doc.layers.length : 0;
         const selection = readSelectionBounds();
         meta = `${doc.width}×${doc.height} · ${layerCount} 个图层` + (selection ? ` · 选区 ${selection.right - selection.left}×${selection.bottom - selection.top}` : "");
-        const signature = `${name}|${layerCount}`;
+        const selectionKey = selection ? `${selection.left},${selection.top},${selection.right},${selection.bottom}` : "";
+        const signature = `${name}|${layerCount}|${selectionKey}`;
         if (signature !== lastDocSignature) {
             lastDocSignature = signature;
             if (uxSettings.autoRefresh) void refreshShot();
@@ -656,28 +657,83 @@ function refreshDocumentInfo() {
 let shotBusy = false;
 let lastDocSignature = "";
 
-/** 重新渲染当前文档缩略图（小尺寸导出，不影响原文档）。 */
-async function refreshShot() {
+function previewEmpty(text) {
     const image = el("shot-image");
+    const result = el("preview");
+    const empty = el("preview-empty");
+    if (image) image.hidden = true;
+    if (result) result.hidden = true;
+    if (empty) {
+        empty.hidden = false;
+        empty.textContent = text;
+    }
+}
+
+/** 参考画面：当前 PS 文档拼合图；有选区时只显示选区内容。 */
+async function showReferencePreview() {
+    const image = el("shot-image");
+    const result = el("preview");
     const empty = el("preview-empty");
     if (!image || !empty) return;
+    const box = el("preview-box");
+    if (box) box.classList.remove("preview--clickable");
     try {
         const doc = app.activeDocument;
         if (!doc) {
-            image.hidden = true;
-            empty.hidden = false;
-            empty.textContent = "没有打开的文档";
+            previewEmpty("没有打开的文档");
             return;
         }
-        const shot = await exportMergedImage({ maxEdge: uxSettings.previewSize || 512 });
+        const bounds = await resolveSelectionBounds();
+        const shot = bounds ? await exportSelectionReference(bounds) : await exportMergedImage({ maxEdge: uxSettings.previewSize || 512 });
         image.src = shot.image;
         image.hidden = false;
+        if (result) result.hidden = true;
         empty.hidden = true;
     } catch (error) {
-        image.hidden = true;
-        empty.hidden = false;
-        empty.textContent = `预览失败：${messageOf(error)}`;
+        previewEmpty(`预览失败：${messageOf(error)}`);
     }
+}
+
+/** 结果画面：最近一次 AI 生成结果，点击预览即可落成 PS 图层。 */
+function showResultPreview() {
+    const image = el("shot-image");
+    const result = el("preview");
+    const empty = el("preview-empty");
+    const box = el("preview-box");
+    if (!result) return;
+    if (lastRender) {
+        result.src = lastRender;
+        result.hidden = false;
+        if (image) image.hidden = true;
+        if (empty) empty.hidden = true;
+        if (box) box.classList.add("preview--clickable");
+    } else {
+        if (box) box.classList.remove("preview--clickable");
+        previewEmpty("还没有生成结果：先点渲染 ▶");
+    }
+}
+
+function syncPreviewSwitch() {
+    const button = el("preview-ref-switch");
+    const label = el("preview-ref-label");
+    const on = Boolean(uxSettings.showReference);
+    if (button) {
+        button.setAttribute("aria-pressed", on ? "true" : "false");
+        button.title = on ? "当前显示：参考画面（点击切换为生成结果）" : "当前显示：生成结果（点击切换为参考画面）";
+    }
+    if (label) label.textContent = on ? "参考" : "结果";
+}
+
+function updatePreviewMode() {
+    syncPreviewSwitch();
+    if (uxSettings.showReference) void showReferencePreview();
+    else showResultPreview();
+}
+
+/** 手动/自动刷新预览；跟随「参考/结果」开关。 */
+async function refreshShot() {
+    if (uxSettings.showReference) await showReferencePreview();
+    else showResultPreview();
 }
 
 // 画布同步入口统一放到画布侧（PS 节点推送/取回、图片节点右键），PS 面板不再提供这两个按钮。
@@ -810,14 +866,13 @@ async function renderImage() {
         lastRenderSelection = selectionBounds;
         const genApply = el("gen-apply");
         if (genApply) genApply.textContent = selectionBounds ? "贴回选区" : "添加到图层";
-        const overlay = el("result-overlay");
-        if (overlay) overlay.hidden = false;
-        const preview = el("preview");
-        if (preview) {
-            preview.src = lastRender;
-            preview.hidden = false;
+        if (uxSettings.showReference) {
+            // 开关在「参考」时保持显示参考画面，提示切换查看结果
+            setGenState(selectionBounds ? "渲染完成（选区）：切到「结果」查看" : "渲染完成：切到「结果」查看");
+        } else {
+            showResultPreview();
+            setGenState(selectionBounds ? "渲染完成（选区）：点画面贴回" : "渲染完成：点画面添加图层");
         }
-        setGenState(selectionBounds ? "渲染完成（选区）" : "渲染完成");
         log(selectionBounds ? "渲染完成，可贴回选区" : "渲染完成");
         if (uxSettings.autoApply) pendingAutoApply = true;
     } catch (error) {
@@ -848,11 +903,9 @@ async function applyRender() {
             log(`已添加到图层：${data.layer}`);
         }
         refreshDocumentInfo();
-        const preview = el("preview");
-        if (preview) preview.hidden = true;
-        const overlay = el("result-overlay");
-        if (overlay) overlay.hidden = true;
-        void refreshShot();
+        // 落层后回到参考画面，看到的是更新后的 PS 文档
+        saveUxSettings({ showReference: true });
+        updatePreviewMode();
     } catch (error) {
         setGenState(messageOf(error), true);
         log(`添加到图层失败：${messageOf(error)}`);
@@ -939,6 +992,32 @@ function bootMain() {
         });
     const shotRefresh = el("shot-refresh");
     if (shotRefresh) shotRefresh.addEventListener("click", () => void refreshShot());
+
+    // 预览开关：参考画面 / 生成结果
+    const previewSwitch = el("preview-ref-switch");
+    if (previewSwitch)
+        previewSwitch.addEventListener("click", () => {
+            saveUxSettings({ showReference: !uxSettings.showReference });
+            updatePreviewMode();
+        });
+    // 点预览区：显示结果时把结果落成 PS 图层
+    const previewBox = el("preview-box");
+    if (previewBox)
+        previewBox.addEventListener("click", () => {
+            if (genBusy) return;
+            if (uxSettings.showReference) {
+                if (lastRender) setGenState("当前是参考画面：切到「结果」后点击画面落层");
+                return;
+            }
+            if (!lastRender) {
+                setGenState("还没有生成结果：先点渲染 ▶", true);
+                return;
+            }
+            void applyRender();
+        });
+    syncPreviewSwitch();
+    updatePreviewMode();
+
     // 文档信息随 PS 操作变化；顺带重读设置，让设置视图的修改生效。
     window.setInterval(() => {
         loadUxSettings();

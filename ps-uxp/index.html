@@ -239,6 +239,49 @@
                 margin-left: auto;
             }
 
+            .switch {
+                position: relative;
+                width: 30px;
+                height: 16px;
+                flex: none;
+                padding: 0;
+                border: 1px solid var(--stroke);
+                border-radius: 999px;
+                background: var(--active);
+                cursor: pointer;
+                appearance: none;
+            }
+
+            .switch[aria-pressed="true"] {
+                background: var(--text);
+                border-color: transparent;
+            }
+
+            .switch__thumb {
+                position: absolute;
+                top: 2px;
+                left: 2px;
+                width: 10px;
+                height: 10px;
+                border-radius: 50%;
+                background: var(--panel);
+                transition: transform 0.15s ease;
+            }
+
+            .switch[aria-pressed="true"] .switch__thumb {
+                transform: translateX(14px);
+                background: var(--panel);
+            }
+
+            .switch__label {
+                font-size: 11px;
+                color: var(--muted);
+                flex: none;
+            }
+
+            .preview--clickable {
+                cursor: pointer;
+            }
             .preview {
                 position: relative;
                 flex: 1 1 160px;
@@ -444,12 +487,15 @@
                 flex: none;
             }
 
-            /* 设置区子项固定高度，不随面板高度压缩 */
-            .settings__group > *,
-            .field,
-            .check,
-            .seg,
-            .input {
+            /* 设置区子项固定高度，不随面板高度压缩（不要影响绘图区的输入框布局） */
+            .settings__group > * {
+                flex: none;
+            }
+
+            .settings__group .field,
+            .settings__group .check,
+            .settings__group .seg,
+            .settings__group .input {
                 flex: none;
             }
 
@@ -534,7 +580,7 @@
                 <button id="refresh" type="button" class="textbtn">刷新</button>
             </div>
 
-            <div class="preview">
+            <div class="preview" id="preview-box">
                 <img id="shot-image" class="preview__img" alt="" hidden />
                 <img id="preview" class="preview__img preview__img--result" alt="" hidden />
                 <span id="preview-empty" class="preview__empty">没有打开的文档</span>
@@ -548,7 +594,13 @@
 
 
             <div class="row row--between">
-                <span class="section__title">AI 生成</span>
+                <div class="row">
+                    <span class="section__title">AI 生成</span>
+                    <button id="preview-ref-switch" type="button" class="switch" role="switch" aria-pressed="true" title="预览：参考画面 / 生成结果">
+                        <span class="switch__thumb"></span>
+                    </button>
+                    <span class="switch__label" id="preview-ref-label">参考</span>
+                </div>
                 <div class="check"><input id="ref-toggle" type="checkbox" checked /><span>参考当前画面</span></div>
             </div>
 
@@ -625,7 +677,7 @@
 
             <div class="settings__group">
                 <div class="settings__title">关于</div>
-                <div class="muted" id="settings-about">PS 节点 v0.1.16</div>
+                <div class="muted" id="settings-about">PS 节点 v0.1.17</div>
             </div>
         </div>    </body>
 </html>
