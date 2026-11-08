@@ -866,10 +866,8 @@ async function applyRender() {
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
-// 面板（主面板 / 设置面板，两个独立窗口）
+// 面板（单面板：绘图视图 / 设置视图，顶部齿轮切换）
 // ---------------------------------------------------------------------------
-
-const bootedViews = { main: false, settings: false };
 
 function showView(name) {
     const mainView = el("view-main");
@@ -878,34 +876,40 @@ function showView(name) {
     if (settingsView) settingsView.hidden = name !== "settings";
 }
 
+function refreshSettingsLog() {
+    const node = el("settings-log");
+    if (node) node.textContent = readJsonStorage(LOG_STORAGE_KEY, []).join("\n");
+}
+
+let booted = false;
+
+function boot() {
+    if (booted) return;
+    booted = true;
+    loadUxSettings();
+    loadRelay();
+    showView("main");
+    bootMain();
+    bootSettings();
+    const openSettings = el("open-settings");
+    if (openSettings)
+        openSettings.addEventListener("click", () => {
+            showView("settings");
+            refreshSettingsLog();
+        });
+    const closeSettings = el("close-settings");
+    if (closeSettings) closeSettings.addEventListener("click", () => showView("main"));
+}
+
 entrypoints.setup({
     panels: {
         psNodePanel: {
             show() {
-                bootPanel("main");
-            },
-        },
-        psSettingsPanel: {
-            show() {
-                bootPanel("settings");
+                boot();
             },
         },
     },
 });
-
-function bootPanel(name) {
-    if (bootedViews[name]) {
-        loadUxSettings();
-        showView(name);
-        return;
-    }
-    bootedViews[name] = true;
-    showView(name);
-    loadUxSettings();
-    loadRelay();
-    if (name === "main") bootMain();
-    else bootSettings();
-}
 
 function bootMain() {
     setStatus("idle", "未连接");
@@ -935,7 +939,7 @@ function bootMain() {
         });
     const shotRefresh = el("shot-refresh");
     if (shotRefresh) shotRefresh.addEventListener("click", () => void refreshShot());
-    // 文档信息随 PS 操作变化；顺带重读设置，让设置面板的修改生效。
+    // 文档信息随 PS 操作变化；顺带重读设置，让设置视图的修改生效。
     window.setInterval(() => {
         loadUxSettings();
         refreshDocumentInfo();
@@ -1022,13 +1026,12 @@ function bootSettings() {
         );
     }
 
-    const logNode = el("settings-log");
-    if (logNode) logNode.textContent = readJsonStorage(LOG_STORAGE_KEY, []).join("\n");
+    refreshSettingsLog();
     const clearLog = el("setting-log-clear");
     if (clearLog)
         clearLog.addEventListener("click", () => {
             writeJsonStorage(LOG_STORAGE_KEY, []);
-            if (logNode) logNode.textContent = "";
+            refreshSettingsLog();
         });
 
     const testButton = el("setting-test");
@@ -1037,9 +1040,16 @@ function bootSettings() {
     if (applyButton)
         applyButton.addEventListener("click", () => {
             saveRelayInputs();
-            void checkRelayHealth();
+            void connect();
         });
 
     void checkRelayHealth();
     window.setInterval(() => void checkRelayHealth(), 5000);
+}
+
+// 面板 HTML 可能已经解析完（UXP 里 DOMContentLoaded 不一定还能等到），两种时机都兜住。
+if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+} else {
+    boot();
 }

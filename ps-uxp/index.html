@@ -441,6 +441,16 @@
                 border: 1px solid var(--stroke);
                 border-radius: 10px;
                 background: var(--field);
+                flex: none;
+            }
+
+            /* 设置区子项固定高度，不随面板高度压缩 */
+            .settings__group > *,
+            .field,
+            .check,
+            .seg,
+            .input {
+                flex: none;
             }
 
             .settings__title {
@@ -511,7 +521,10 @@
                     <span id="dot" class="dot"></span>
                     <span id="status" class="bar__text">未连接</span>
                 </div>
-                <button id="connect" type="button" class="textbtn">连接</button>
+                <div class="row">
+                    <button id="open-settings" type="button" class="textbtn" title="设置">⚙ 设置</button>
+                    <button id="connect" type="button" class="textbtn">连接</button>
+                </div>
             </div>
 
             <div class="docline">
@@ -536,7 +549,7 @@
 
             <div class="row row--between">
                 <span class="section__title">AI 生成</span>
-                <label class="check"><input id="ref-toggle" type="checkbox" checked /><span>参考当前画面</span></label>
+                <div class="check"><input id="ref-toggle" type="checkbox" checked /><span>参考当前画面</span></div>
             </div>
 
             <div class="row">
@@ -553,11 +566,12 @@
                 <button id="shot-refresh" type="button" class="textbtn">刷新预览</button>
             </div>
 
-            <div class="muted" style="font-size: 10px">设置：增效工具 → PS 节点设置</div>
+            <div class="muted" style="font-size: 10px">设置：点右上角 ⚙ 设置</div>
         </div>
         <script src="main.js"></script>
         <div class="app" id="view-settings" hidden>
             <div class="settings__head">
+                <button id="close-settings" type="button" class="textbtn">‹ 返回</button>
                 <span class="section__title">PS 节点设置</span>
                 <span class="spacer"></span>
                 <span class="dot" id="settings-dot"></span>
@@ -577,14 +591,14 @@
 
             <div class="settings__group">
                 <div class="settings__title">生成</div>
-                <label class="field">
+                <div class="field">
                     <span class="field__label">默认模型</span>
                     <select id="setting-model" class="input">
                         <option value="">默认模型</option>
                     </select>
-                </label>
-                <label class="check"><input id="setting-ref" type="checkbox" checked /><span>默认参考当前画面</span></label>
-                <label class="check"><input id="setting-auto-apply" type="checkbox" /><span>渲染后自动添加到图层</span></label>
+                </div>
+                <div class="check"><input id="setting-ref" type="checkbox" checked /><span>默认参考当前画面</span></div>
+                <div class="check"><input id="setting-auto-apply" type="checkbox" /><span>渲染后自动添加到图层</span></div>
             </div>
 
             <div class="settings__group">
@@ -597,7 +611,7 @@
                         <button type="button" data-value="2048">2048</button>
                     </div>
                 </div>
-                <label class="check"><input id="setting-auto-refresh" type="checkbox" checked /><span>自动刷新预览</span></label>
+                <div class="check"><input id="setting-auto-refresh" type="checkbox" checked /><span>自动刷新预览</span></div>
             </div>
 
             <div class="settings__group">
@@ -611,7 +625,7 @@
 
             <div class="settings__group">
                 <div class="settings__title">关于</div>
-                <div class="muted" id="settings-about">PS 节点 v0.1.15</div>
+                <div class="muted" id="settings-about">PS 节点 v0.1.16</div>
             </div>
         </div>    </body>
 </html>

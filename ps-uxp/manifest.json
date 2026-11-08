@@ -1,7 +1,7 @@
 {
     "id": "com.wangming.psnode",
     "name": "PS 节点",
-    "version": "0.1.15",
+    "version": "0.1.16",
     "main": "index.html",
     "manifestVersion": 6,
     "host": { "app": "PS", "minVersion": "24.4.0" },
@@ -14,15 +14,6 @@
             "maximumSize": { "width": 1200, "height": 1600 },
             "preferredDockedSize": { "width": 320, "height": 560 },
             "preferredFloatingSize": { "width": 340, "height": 600 }
-        },
-        {
-            "type": "panel",
-            "id": "psSettingsPanel",
-            "label": { "default": "PS 节点设置" },
-            "minimumSize": { "width": 280, "height": 320 },
-            "maximumSize": { "width": 1200, "height": 1600 },
-            "preferredDockedSize": { "width": 320, "height": 520 },
-            "preferredFloatingSize": { "width": 360, "height": 560 }
         }
     ],
     "requiredPermissions": {
