@@ -5,41 +5,38 @@
         <title>PS 节点</title>
         <style>
             /* ============================================================
-               UI 规范（严格统一）
-               间距：卡片间距 5 / 页面内边距 12 / 卡片内边距 12 / 内部行距 8
-               圆角：控件 8 / 卡片 12 / 预览 14
-               控件：高度 32，输入类=单层深色填充无边框
-               字号：正文 12 / 辅助 11.5 / 提示 10.5 / 区块标题 12.5
+               参考 UI 规范（ComfyUI Settings 风格）
+               层级：窗口 #333 > 卡片 #262626 > 控件 #1b1b1b（越往里越深）
+               间距：卡片间距 12 / 卡片内边距 16 / 行距 12 / 标签-控件 6
+               控件：高 38、圆角 10、单层深色填充无边框
+               圆角：卡片 12 / 控件 10
+               字号：标题 13 / 控件 12.5 / 标签 11.5 / 提示 11
                ============================================================ */
             :root {
                 color-scheme: dark;
-                --text: #ededed;
-                --muted: rgba(255, 255, 255, 0.55);
-                --placeholder: rgba(255, 255, 255, 0.32);
-                --stroke: rgba(255, 255, 255, 0.14);
+                --window: #333333;
+                --card: #262626;
+                --control: #1b1b1b;
+                --btn: #3a3a3a;
+                --text: #eaeaea;
+                --label: #a0a0a0;
+                --hint: #808080;
                 --hover: rgba(255, 255, 255, 0.08);
-                --active: rgba(255, 255, 255, 0.16);
-                --panel: #1a1a1a;
-                --card: #242424;
-                --input: #1b1b1b;
-                --btn: #2e2e2e;
-                --preview: #151515;
+                --thumb: rgba(255, 255, 255, 0.22);
             }
 
             @media (prefers-color-scheme: light) {
                 :root {
                     color-scheme: light;
-                    --text: #1a1a1a;
-                    --muted: rgba(0, 0, 0, 0.52);
-                    --placeholder: rgba(0, 0, 0, 0.34);
-                    --stroke: rgba(0, 0, 0, 0.14);
-                    --hover: rgba(0, 0, 0, 0.06);
-                    --active: rgba(0, 0, 0, 0.1);
-                    --panel: #f4f4f4;
+                    --window: #e9e9e9;
                     --card: #ffffff;
-                    --input: #efefef;
-                    --btn: #e8e8e8;
-                    --preview: #e9e9e9;
+                    --control: #f2f2f2;
+                    --btn: #e2e2e2;
+                    --text: #1a1a1a;
+                    --label: #666666;
+                    --hint: #8a8a8a;
+                    --hover: rgba(0, 0, 0, 0.06);
+                    --thumb: rgba(0, 0, 0, 0.25);
                 }
             }
 
@@ -47,10 +44,10 @@
             body {
                 margin: 0;
                 height: 100%;
-                background: transparent;
+                background: var(--window);
                 color: var(--text);
                 font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
-                font-size: 12px;
+                font-size: 12.5px;
                 line-height: 1.5;
                 overflow: hidden;
             }
@@ -62,7 +59,7 @@
             .app {
                 display: flex;
                 flex-direction: column;
-                gap: 8px;
+                gap: 12px;
                 height: 100vh;
                 box-sizing: border-box;
                 padding: 12px;
@@ -70,18 +67,13 @@
                 overflow-x: hidden;
             }
 
-            /* 设置页：卡片间距严格 5px */
-            #view-settings {
-                gap: 5px;
-            }
-
             .app::-webkit-scrollbar {
-                width: 6px;
+                width: 8px;
             }
 
             .app::-webkit-scrollbar-thumb {
-                background: var(--stroke);
-                border-radius: 3px;
+                background: var(--thumb);
+                border-radius: 4px;
             }
 
             .app::-webkit-scrollbar-track {
@@ -108,7 +100,7 @@
                 width: 7px;
                 height: 7px;
                 border-radius: 50%;
-                background: var(--muted);
+                background: var(--label);
                 flex: none;
             }
 
@@ -121,7 +113,7 @@
             }
 
             .muted {
-                color: var(--muted);
+                color: var(--label);
                 font-size: 11.5px;
                 min-width: 0;
                 white-space: nowrap;
@@ -130,8 +122,8 @@
             }
 
             .hint {
-                color: var(--placeholder);
-                font-size: 10.5px;
+                color: var(--hint);
+                font-size: 11px;
                 padding: 0 2px;
                 flex: none;
             }
@@ -140,10 +132,10 @@
                 appearance: none;
                 border: 0;
                 background: transparent;
-                color: var(--muted);
+                color: var(--label);
                 font: inherit;
                 font-size: 12px;
-                padding: 5px 9px;
+                padding: 6px 10px;
                 border-radius: 8px;
                 cursor: pointer;
                 white-space: nowrap;
@@ -166,21 +158,21 @@
                 align-items: center;
                 justify-content: center;
                 gap: 4px;
-                height: 32px;
-                padding: 0 14px;
+                height: 38px;
+                padding: 0 16px;
                 border: 0;
-                border-radius: 8px;
+                border-radius: 10px;
                 background: var(--btn);
                 color: var(--text);
                 font: inherit;
-                font-size: 12px;
+                font-size: 12.5px;
                 cursor: pointer;
                 white-space: nowrap;
                 flex: none;
             }
 
             .btn:hover:not(:disabled) {
-                filter: brightness(1.12);
+                filter: brightness(1.1);
             }
 
             .btn:disabled {
@@ -190,7 +182,7 @@
 
             .btn--primary {
                 background: var(--text);
-                color: var(--panel);
+                color: var(--window);
                 font-weight: 600;
             }
 
@@ -203,8 +195,9 @@
                 align-items: center;
                 justify-content: space-between;
                 gap: 8px;
-                min-height: 26px;
+                min-height: 30px;
                 flex: none;
+                padding: 0 2px;
             }
 
             .bar__status {
@@ -216,7 +209,7 @@
 
             .bar__text {
                 font-size: 12px;
-                color: var(--muted);
+                color: var(--label);
                 overflow: hidden;
                 text-overflow: ellipsis;
                 white-space: nowrap;
@@ -228,6 +221,7 @@
                 gap: 8px;
                 min-width: 0;
                 flex: none;
+                padding: 0 2px;
             }
 
             .docline__name {
@@ -250,16 +244,19 @@
 
             .preview {
                 position: relative;
-                flex: 1 1 170px;
-                min-height: 150px;
-                border-radius: 14px;
-                background: var(--preview);
+                flex: 1 1 200px;
+                min-height: 170px;
+                border-radius: 12px;
+                background: var(--control);
                 overflow: hidden;
             }
 
             .preview__img {
                 position: absolute;
-                inset: 0;
+                top: 0;
+                right: 0;
+                bottom: 0;
+                left: 0;
                 width: 100%;
                 height: 100%;
                 object-fit: contain;
@@ -267,16 +264,19 @@
             }
 
             .preview__img--result {
-                background: var(--preview);
+                background: var(--control);
             }
 
             .preview__empty {
                 position: absolute;
-                inset: 0;
+                top: 0;
+                right: 0;
+                bottom: 0;
+                left: 0;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                color: var(--placeholder);
+                color: var(--hint);
                 font-size: 11.5px;
                 padding: 0 16px;
                 text-align: center;
@@ -290,44 +290,52 @@
                 display: flex;
                 align-items: center;
                 gap: 8px;
-                padding: 10px;
+                padding: 12px;
                 background: linear-gradient(to top, rgba(0, 0, 0, 0.55), transparent);
             }
 
             .preview__label {
                 font-size: 11.5px;
-                color: var(--muted);
+                color: var(--label);
             }
 
             .preview--clickable {
                 cursor: pointer;
             }
 
-            .controls {
+            /* 卡片：参考图规范 */
+            .controls,
+            .settings__group {
                 display: flex;
                 flex-direction: column;
-                gap: 8px;
+                gap: 12px;
                 flex: none;
-                padding: 12px;
+                padding: 16px;
                 border-radius: 12px;
                 background: var(--card);
             }
 
-            .section__title {
-                font-size: 12px;
+            .controls > *,
+            .settings__group > * {
+                flex: none;
+            }
+
+            .section__title,
+            .settings__title {
+                font-size: 13px;
                 font-weight: 600;
                 color: var(--text);
             }
 
             .switch {
                 position: relative;
-                width: 32px;
-                height: 18px;
+                width: 36px;
+                height: 20px;
                 flex: none;
                 padding: 0;
                 border: 0;
                 border-radius: 999px;
-                background: var(--active);
+                background: var(--btn);
                 cursor: pointer;
                 appearance: none;
             }
@@ -340,20 +348,20 @@
                 position: absolute;
                 top: 2px;
                 left: 2px;
-                width: 14px;
-                height: 14px;
+                width: 16px;
+                height: 16px;
                 border-radius: 50%;
-                background: var(--panel);
+                background: var(--card);
                 transition: transform 0.15s ease;
             }
 
             .switch[aria-pressed="true"] .switch__thumb {
-                transform: translateX(14px);
+                transform: translateX(16px);
             }
 
             .switch__label {
                 font-size: 11.5px;
-                color: var(--muted);
+                color: var(--label);
                 flex: none;
             }
 
@@ -361,57 +369,53 @@
                 display: inline-flex;
                 align-items: center;
                 gap: 8px;
-                color: var(--muted);
-                font-size: 11.5px;
+                color: var(--text);
+                font-size: 12.5px;
                 cursor: default;
                 flex: none;
             }
 
-            .input {
-                width: 100%;
-                min-width: 0;
-                height: 32px;
-                box-sizing: border-box;
-                padding: 0 10px;
-                border: 0;
-                border-radius: 8px;
-                background: var(--input);
-                color: var(--text);
-                font: inherit;
-                font-size: 12px;
-                flex: none;
-            }
-
-            .input:focus {
-                outline: none;
-                box-shadow: inset 0 0 0 1px var(--muted);
-            }
-
-            .input option {
-                background: var(--panel);
-                color: var(--text);
-            }
-
+            .input,
             .textarea {
                 width: 100%;
                 box-sizing: border-box;
-                height: 64px;
-                min-height: 52px;
-                resize: none;
-                padding: 8px 10px;
                 border: 0;
-                border-radius: 8px;
-                background: var(--input);
+                border-radius: 10px;
+                background: var(--control);
                 color: var(--text);
                 font: inherit;
-                font-size: 12px;
-                line-height: 1.5;
+                font-size: 12.5px;
                 flex: none;
             }
 
+            .input {
+                height: 38px;
+                padding: 0 12px;
+            }
+
+            /* 绘图区模型行：下拉自适应，按钮保持可见 */
+            .controls .row .input {
+                width: auto;
+                flex: 1 1 auto;
+            }
+
+            .textarea {
+                height: 76px;
+                min-height: 76px;
+                resize: none;
+                padding: 10px 12px;
+                line-height: 1.5;
+            }
+
+            .input:focus,
             .textarea:focus {
                 outline: none;
-                box-shadow: inset 0 0 0 1px var(--muted);
+                box-shadow: inset 0 0 0 1px var(--label);
+            }
+
+            .input option {
+                background: var(--card);
+                color: var(--text);
             }
 
             .gen__state {
@@ -420,6 +424,7 @@
                 text-overflow: ellipsis;
                 white-space: nowrap;
                 font-size: 11.5px;
+                color: var(--label);
             }
 
             .gen__state.error {
@@ -433,27 +438,17 @@
                 align-items: center;
                 gap: 8px;
                 flex: none;
-                padding: 0 2px;
+                padding: 2px;
+                white-space: nowrap;
             }
 
-            .settings__group {
-                display: flex;
-                flex-direction: column;
-                gap: 8px;
-                flex: none;
-                padding: 12px;
-                border-radius: 12px;
-                background: var(--card);
-            }
-
-            .settings__group > * {
+            .settings__head .section__title {
                 flex: none;
             }
 
-            .settings__title {
-                font-size: 12.5px;
-                font-weight: 600;
-                color: var(--text);
+            .settings__head .muted {
+                flex: 1 1 auto;
+                text-align: right;
             }
 
             .field {
@@ -464,18 +459,18 @@
 
             .field__label {
                 font-size: 11.5px;
-                color: var(--muted);
+                color: var(--label);
             }
 
-            /* 分段控件：整行三等分，严格对齐 */
+            /* 分段控件：整行三等分 */
             .seg {
                 display: flex;
                 width: 100%;
                 gap: 2px;
-                padding: 2px;
+                padding: 3px;
                 box-sizing: border-box;
-                border-radius: 9px;
-                background: var(--input);
+                border-radius: 10px;
+                background: var(--control);
             }
 
             .seg button {
@@ -484,11 +479,11 @@
                 min-width: 0;
                 border: 0;
                 background: transparent;
-                color: var(--muted);
+                color: var(--label);
                 font: inherit;
-                font-size: 12px;
-                height: 28px;
-                border-radius: 7px;
+                font-size: 12.5px;
+                height: 32px;
+                border-radius: 8px;
                 cursor: pointer;
                 font-variant-numeric: tabular-nums;
             }
@@ -500,21 +495,21 @@
 
             .seg button[aria-pressed="true"] {
                 background: var(--text);
-                color: var(--panel);
+                color: var(--window);
                 font-weight: 600;
             }
 
             #settings-log {
                 margin: 0;
-                padding: 8px;
-                min-height: 64px;
-                max-height: 140px;
+                padding: 10px;
+                min-height: 76px;
+                max-height: 160px;
                 overflow: auto;
                 border: 0;
-                border-radius: 8px;
-                background: var(--input);
-                color: var(--muted);
-                font-size: 10.5px;
+                border-radius: 10px;
+                background: var(--control);
+                color: var(--label);
+                font-size: 11px;
                 line-height: 1.5;
                 white-space: pre-wrap;
                 word-break: break-word;
@@ -583,7 +578,7 @@
         <div class="app" id="view-settings" hidden>
             <div class="settings__head">
                 <button id="close-settings" type="button" class="textbtn">‹ 返回</button>
-                <span class="section__title">PS 节点设置</span>
+                <span class="section__title">设置</span>
                 <span class="spacer"></span>
                 <span class="dot" id="settings-dot"></span>
                 <span class="muted" id="settings-status">未连接</span>
@@ -636,7 +631,7 @@
 
             <div class="settings__group">
                 <div class="settings__title">关于</div>
-                <div class="muted" id="settings-about">PS 节点 v0.1.20</div>
+                <div class="muted" id="settings-about">PS 节点 v0.1.21</div>
             </div>
         </div>    </body>
 </html>
