@@ -15,11 +15,45 @@ const formats = storage.formats;
 console.log("[ps-node] main.js loaded");
 
 const RELAY_STORAGE_KEY = "ps-node:relay";
+const SETTINGS_STORAGE_KEY = "ps-node:settings";
+const MODELS_STORAGE_KEY = "ps-node:models";
+const LOG_STORAGE_KEY = "ps-node:log";
 const POLL_TIMEOUT_MS = 25000;
 
 const relay = { url: "http://localhost:23310", token: "" };
 let polling = false;
 let relayConnected = false;
+
+const DEFAULT_SETTINGS = { model: "", reference: true, autoApply: false, previewSize: 512, autoRefresh: true };
+let uxSettings = Object.assign({}, DEFAULT_SETTINGS);
+let pendingAutoApply = false;
+
+function readJsonStorage(key, fallback) {
+    try {
+        return JSON.parse(window.localStorage.getItem(key) || "null") || fallback;
+    } catch (error) {
+        return fallback;
+    }
+}
+
+function writeJsonStorage(key, value) {
+    try {
+        window.localStorage.setItem(key, JSON.stringify(value));
+    } catch (error) {
+        // UXP 版本不支持 localStorage 时就只在本次会话里生效
+    }
+}
+
+function loadUxSettings() {
+    uxSettings = Object.assign({}, DEFAULT_SETTINGS, readJsonStorage(SETTINGS_STORAGE_KEY, {}));
+    return uxSettings;
+}
+
+function saveUxSettings(patch) {
+    uxSettings = Object.assign({}, uxSettings, patch);
+    writeJsonStorage(SETTINGS_STORAGE_KEY, uxSettings);
+    return uxSettings;
+}
 
 // ---------------------------------------------------------------------------
 // 小工具
@@ -36,16 +70,24 @@ function messageOf(error) {
 }
 
 function log(line) {
-    const node = el("log");
-    if (!node) return;
     const time = new Date().toLocaleTimeString("zh-CN");
-    node.textContent = `${time}  ${line}\n` + node.textContent;
+    const entry = `${time}  ${line}`;
+    const node = el("log");
+    if (node) node.textContent = `${entry}\n` + node.textContent;
+    appendLogStorage(entry);
     if (/失败|中断|错误|不存在|选区/.test(line)) {
         const section = el("log-section");
         const body = el("log-body");
         if (section) section.classList.add("open");
         if (body) body.hidden = false;
     }
+}
+
+/** 日志同时存一份到 localStorage，设置面板里能看历史（两个面板是不同 JS 上下文）。 */
+function appendLogStorage(entry) {
+    const lines = readJsonStorage(LOG_STORAGE_KEY, []);
+    lines.unshift(entry);
+    writeJsonStorage(LOG_STORAGE_KEY, lines.slice(0, 200));
 }
 
 function setStatus(kind, label) {
@@ -447,38 +489,19 @@ async function placeImageInSelection(image, bounds, layerName) {
 // 中继客户端
 // ---------------------------------------------------------------------------
 
-function readStorage() {
-    try {
-        return JSON.parse(window.localStorage.getItem(RELAY_STORAGE_KEY) || "{}");
-    } catch (error) {
-        return {};
-    }
-}
-
-function writeStorage(value) {
-    try {
-        window.localStorage.setItem(RELAY_STORAGE_KEY, JSON.stringify(value));
-    } catch (error) {
-        // UXP 版本不支持 localStorage 时就只在本次会话里生效
-    }
-}
-
 function loadRelay() {
-    const saved = readStorage();
+    const saved = readJsonStorage(RELAY_STORAGE_KEY, {});
     if (saved.url) relay.url = String(saved.url).replace(/\/+$/, "");
     if (saved.token) relay.token = String(saved.token);
-    const urlInput = el("url");
-    const tokenInput = el("token");
-    if (urlInput) urlInput.value = relay.url;
-    if (tokenInput) tokenInput.value = relay.token;
 }
 
-function saveRelay() {
-    const urlInput = el("url");
-    const tokenInput = el("token");
+/** 设置面板里改完地址后调用；主面板没有这些输入框时保持原值。 */
+function saveRelayInputs() {
+    const urlInput = el("setting-url");
+    const tokenInput = el("setting-token");
     if (urlInput) relay.url = String(urlInput.value).trim().replace(/\/+$/, "") || relay.url;
     if (tokenInput) relay.token = String(tokenInput.value).trim();
-    writeStorage({ url: relay.url, token: relay.token });
+    writeJsonStorage(RELAY_STORAGE_KEY, { url: relay.url, token: relay.token });
 }
 
 async function request(path, init) {
@@ -488,7 +511,7 @@ async function request(path, init) {
 }
 
 async function connect() {
-    saveRelay();
+    saveRelayInputs();
     try {
         const response = await request("/api/health");
         if (!response.ok) throw new Error(`中继返回 ${response.status}`);
@@ -616,7 +639,7 @@ function refreshDocumentInfo() {
         const signature = `${name}|${layerCount}`;
         if (signature !== lastDocSignature) {
             lastDocSignature = signature;
-            void refreshShot();
+            if (uxSettings.autoRefresh) void refreshShot();
         }
     } catch (error) {
         // 没有打开的文档
@@ -646,7 +669,7 @@ async function refreshShot() {
             empty.textContent = "没有打开的文档";
             return;
         }
-        const shot = await exportMergedImage({ maxEdge: 512 });
+        const shot = await exportMergedImage({ maxEdge: uxSettings.previewSize || 512 });
         image.src = shot.image;
         image.hidden = false;
         empty.hidden = true;
@@ -728,6 +751,9 @@ async function refreshModels() {
             select.appendChild(option);
         });
         if (current && models.some((model) => model.value === current)) select.value = current;
+        const preferred = uxSettings.model;
+        if (preferred && models.some((model) => model.value === preferred)) select.value = preferred;
+        writeJsonStorage(MODELS_STORAGE_KEY, models);
         modelsLoaded = models.length > 0;
         setGenState(models.length ? "就绪" : "画布未配置模型", models.length === 0);
     } catch (error) {
@@ -793,11 +819,16 @@ async function renderImage() {
         }
         setGenState(selectionBounds ? "渲染完成（选区）" : "渲染完成");
         log(selectionBounds ? "渲染完成，可贴回选区" : "渲染完成");
+        if (uxSettings.autoApply) pendingAutoApply = true;
     } catch (error) {
         setGenState(messageOf(error), true);
         log(`渲染失败：${messageOf(error)}`);
     } finally {
         setGenBusy(false);
+        if (pendingAutoApply) {
+            pendingAutoApply = false;
+            void applyRender();
+        }
     }
 }
 
@@ -834,25 +865,55 @@ async function applyRender() {
 // 面板
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// 面板（主面板 / 设置面板，两个独立窗口）
+// ---------------------------------------------------------------------------
+
+const bootedViews = { main: false, settings: false };
+
+function showView(name) {
+    const mainView = el("view-main");
+    const settingsView = el("view-settings");
+    if (mainView) mainView.hidden = name !== "main";
+    if (settingsView) settingsView.hidden = name !== "settings";
+}
+
 entrypoints.setup({
     panels: {
         psNodePanel: {
             show() {
-                loadRelay();
-                if (relayConnected) void refreshModels();
+                bootPanel("main");
+            },
+        },
+        psSettingsPanel: {
+            show() {
+                bootPanel("settings");
             },
         },
     },
 });
 
-function boot() {
+function bootPanel(name) {
+    if (bootedViews[name]) {
+        loadUxSettings();
+        showView(name);
+        return;
+    }
+    bootedViews[name] = true;
+    showView(name);
+    loadUxSettings();
     loadRelay();
+    if (name === "main") bootMain();
+    else bootSettings();
+}
+
+function bootMain() {
     setStatus("idle", "未连接");
     refreshDocumentInfo();
+    const refToggle = el("ref-toggle");
+    if (refToggle) refToggle.checked = Boolean(uxSettings.reference);
     const connectButton = el("connect");
     if (connectButton) connectButton.addEventListener("click", () => void connect());
-    const applyButton = el("apply");
-    if (applyButton) applyButton.addEventListener("click", () => void connect());
     const refreshButton = el("refresh");
     if (refreshButton)
         refreshButton.addEventListener("click", () => {
@@ -874,35 +935,111 @@ function boot() {
         });
     const shotRefresh = el("shot-refresh");
     if (shotRefresh) shotRefresh.addEventListener("click", () => void refreshShot());
-    const logToggle = el("log-toggle");
-    if (logToggle)
-        logToggle.addEventListener("click", () => {
-            const body = el("log-body");
-            const section = el("log-section");
-            if (!body) return;
-            body.hidden = !body.hidden;
-            if (section) section.classList.toggle("open", !body.hidden);
-        });
-    const relayToggle = el("relay-toggle");
-    if (relayToggle)
-        relayToggle.addEventListener("click", () => {
-            const body = el("relay-body");
-            const section = el("relay-section");
-            if (!body) return;
-            body.hidden = !body.hidden;
-            if (section) section.classList.toggle("open", !body.hidden);
-        });
-    // 文档信息随 PS 操作变化，定期刷新
-    window.setInterval(refreshDocumentInfo, 3000);
+    // 文档信息随 PS 操作变化；顺带重读设置，让设置面板的修改生效。
+    window.setInterval(() => {
+        loadUxSettings();
+        refreshDocumentInfo();
+    }, 3000);
     // 中继允许「无 Origin」的本机客户端免 token 连接（PS 侧就是这种），所以启动即自动连。
     setTimeout(() => {
         if (!polling) void connect();
     }, 300);
 }
 
-// 面板 HTML 可能已经解析完（UXP 里 DOMContentLoaded 不一定还能等到），两种时机都兜住。
-if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", boot);
-} else {
-    boot();
+async function checkRelayHealth() {
+    const dot = el("settings-dot");
+    const status = el("settings-status");
+    if (dot) dot.className = "dot";
+    if (status) status.textContent = "检查中…";
+    try {
+        const response = await request("/api/health");
+        if (!response.ok) throw new Error(`中继返回 ${response.status}`);
+        const data = await response.json();
+        const psConnected = Boolean(data.photoshop && data.photoshop.connected);
+        if (dot) dot.className = "dot ok";
+        if (status) status.textContent = psConnected ? "已连接" : "中继在线，PS 未连接";
+        return true;
+    } catch (error) {
+        if (dot) dot.className = "dot error";
+        if (status) status.textContent = `未连接：${messageOf(error)}`;
+        return false;
+    }
+}
+
+function bootSettings() {
+    const urlInput = el("setting-url");
+    const tokenInput = el("setting-token");
+    if (urlInput) urlInput.value = relay.url;
+    if (tokenInput) tokenInput.value = relay.token;
+
+    const modelSelect = el("setting-model");
+    if (modelSelect) {
+        const models = readJsonStorage(MODELS_STORAGE_KEY, []);
+        const fallback = document.createElement("option");
+        fallback.value = "";
+        fallback.textContent = "默认模型";
+        modelSelect.innerHTML = "";
+        modelSelect.appendChild(fallback);
+        models.forEach((model) => {
+            const option = document.createElement("option");
+            option.value = model.value;
+            option.textContent = model.label || model.value;
+            modelSelect.appendChild(option);
+        });
+        modelSelect.value = uxSettings.model || "";
+        modelSelect.addEventListener("change", () => saveUxSettings({ model: modelSelect.value }));
+    }
+
+    const refToggle = el("setting-ref");
+    if (refToggle) {
+        refToggle.checked = Boolean(uxSettings.reference);
+        refToggle.addEventListener("change", () => saveUxSettings({ reference: refToggle.checked }));
+    }
+    const autoApply = el("setting-auto-apply");
+    if (autoApply) {
+        autoApply.checked = Boolean(uxSettings.autoApply);
+        autoApply.addEventListener("change", () => saveUxSettings({ autoApply: autoApply.checked }));
+    }
+    const autoRefresh = el("setting-auto-refresh");
+    if (autoRefresh) {
+        autoRefresh.checked = Boolean(uxSettings.autoRefresh);
+        autoRefresh.addEventListener("change", () => saveUxSettings({ autoRefresh: autoRefresh.checked }));
+    }
+
+    const sizeGroup = el("setting-preview-size");
+    if (sizeGroup) {
+        const buttons = Array.from(sizeGroup.querySelectorAll("button"));
+        const applySize = (value) => {
+            buttons.forEach((button) => button.setAttribute("aria-pressed", Number(button.dataset.value) === value ? "true" : "false"));
+        };
+        applySize(Number(uxSettings.previewSize) || 512);
+        buttons.forEach((button) =>
+            button.addEventListener("click", () => {
+                const value = Number(button.dataset.value) || 512;
+                saveUxSettings({ previewSize: value });
+                applySize(value);
+            }),
+        );
+    }
+
+    const logNode = el("settings-log");
+    if (logNode) logNode.textContent = readJsonStorage(LOG_STORAGE_KEY, []).join("\n");
+    const clearLog = el("setting-log-clear");
+    if (clearLog)
+        clearLog.addEventListener("click", () => {
+            writeJsonStorage(LOG_STORAGE_KEY, []);
+            if (logNode) logNode.textContent = "";
+        });
+
+    const testButton = el("setting-test");
+    if (testButton) testButton.addEventListener("click", () => void checkRelayHealth());
+    const applyButton = el("setting-apply");
+    if (applyButton)
+        applyButton.addEventListener("click", () => {
+            saveRelayInputs();
+            void checkRelayHealth();
+        });
+
+    void checkRelayHealth();
+    window.setInterval(() => void checkRelayHealth(), 5000);
 }

@@ -426,10 +426,86 @@
                 white-space: pre-wrap;
                 word-break: break-word;
             }
-        </style>
+            .settings__head {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                padding: 2px 0;
+            }
+
+            .settings__group {
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
+                padding: 8px;
+                border: 1px solid var(--stroke);
+                border-radius: 10px;
+                background: var(--field);
+            }
+
+            .settings__title {
+                font-size: 11px;
+                font-weight: 600;
+            }
+
+            .field {
+                display: flex;
+                flex-direction: column;
+                gap: 4px;
+            }
+
+            .field__label {
+                font-size: 11px;
+                color: var(--muted);
+            }
+
+            .seg {
+                display: inline-flex;
+                gap: 2px;
+            }
+
+            .seg button {
+                appearance: none;
+                border: 0;
+                background: transparent;
+                color: var(--muted);
+                font: inherit;
+                font-size: 11px;
+                padding: 4px 9px;
+                border-radius: 6px;
+                cursor: pointer;
+                font-variant-numeric: tabular-nums;
+            }
+
+            .seg button:hover {
+                background: var(--hover);
+                color: var(--text);
+            }
+
+            .seg button[aria-pressed="true"] {
+                background: var(--active);
+                color: var(--text);
+                font-weight: 600;
+            }
+
+            #settings-log {
+                margin: 0;
+                padding: 6px;
+                min-height: 48px;
+                max-height: 120px;
+                overflow: auto;
+                border: 1px solid var(--stroke);
+                border-radius: 8px;
+                background: var(--panel);
+                color: var(--muted);
+                font-size: 10px;
+                line-height: 1.5;
+                white-space: pre-wrap;
+                word-break: break-word;
+            }        </style>
     </head>
     <body>
-        <div class="app">
+        <div class="app" id="view-main">
             <div class="bar">
                 <div class="bar__status">
                     <span id="dot" class="dot"></span>
@@ -477,25 +553,65 @@
                 <button id="shot-refresh" type="button" class="textbtn">刷新预览</button>
             </div>
 
-            <div class="collapse" id="log-section">
-                <button class="collapse__head" id="log-toggle" type="button">日志<span class="collapse__chevron">›</span></button>
-                <div class="collapse__body" id="log-body" hidden>
-                    <pre id="log"></pre>
+            <div class="muted" style="font-size: 10px">设置：增效工具 → PS 节点设置</div>
+        </div>
+        <script src="main.js"></script>
+        <div class="app" id="view-settings" hidden>
+            <div class="settings__head">
+                <span class="section__title">PS 节点设置</span>
+                <span class="spacer"></span>
+                <span class="dot" id="settings-dot"></span>
+                <span class="muted" id="settings-status">未连接</span>
+            </div>
+
+            <div class="settings__group">
+                <div class="settings__title">连接</div>
+                <input id="setting-url" class="input" type="text" placeholder="http://localhost:23310" />
+                <input id="setting-token" class="input" type="text" placeholder="token（中继要求时填写，可留空）" />
+                <div class="row">
+                    <button id="setting-test" type="button" class="textbtn">测试连接</button>
+                    <span class="spacer"></span>
+                    <button id="setting-apply" type="button" class="btn">应用并重连</button>
                 </div>
             </div>
 
-            <div class="collapse" id="relay-section">
-                <button class="collapse__head" id="relay-toggle" type="button">中继地址<span class="collapse__chevron">›</span></button>
-                <div class="collapse__body" id="relay-body" hidden>
-                    <input id="url" class="input" type="text" placeholder="http://localhost:23310" />
-                    <input id="token" class="input" type="text" placeholder="token（中继要求时填写，可留空）" />
-                    <div class="row">
-                        <span class="spacer"></span>
-                        <button id="apply" type="button" class="textbtn">应用并重连</button>
+            <div class="settings__group">
+                <div class="settings__title">生成</div>
+                <label class="field">
+                    <span class="field__label">默认模型</span>
+                    <select id="setting-model" class="input">
+                        <option value="">默认模型</option>
+                    </select>
+                </label>
+                <label class="check"><input id="setting-ref" type="checkbox" checked /><span>默认参考当前画面</span></label>
+                <label class="check"><input id="setting-auto-apply" type="checkbox" /><span>渲染后自动添加到图层</span></label>
+            </div>
+
+            <div class="settings__group">
+                <div class="settings__title">预览</div>
+                <div class="field">
+                    <span class="field__label">预览最长边</span>
+                    <div class="seg" id="setting-preview-size">
+                        <button type="button" data-value="512">512</button>
+                        <button type="button" data-value="1024">1024</button>
+                        <button type="button" data-value="2048">2048</button>
                     </div>
                 </div>
+                <label class="check"><input id="setting-auto-refresh" type="checkbox" checked /><span>自动刷新预览</span></label>
             </div>
-        </div>
-        <script src="main.js"></script>
-    </body>
+
+            <div class="settings__group">
+                <div class="settings__title">日志</div>
+                <pre id="settings-log"></pre>
+                <div class="row">
+                    <span class="spacer"></span>
+                    <button id="setting-log-clear" type="button" class="textbtn">清空日志</button>
+                </div>
+            </div>
+
+            <div class="settings__group">
+                <div class="settings__title">关于</div>
+                <div class="muted" id="settings-about">PS 节点 v0.1.15</div>
+            </div>
+        </div>    </body>
 </html>
