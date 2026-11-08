@@ -317,6 +317,26 @@ export type PluginRuntime = CanvasPluginApp & {
     Fragment: typeof import("react").Fragment;
 };
 
+// 传给「任意节点右键动作」的上下文：不含节点渲染能力
+export type CanvasPluginActionContext = {
+    node: CanvasNodeData;
+    getNode: (id: string) => CanvasNodeData | null;
+    getNodes: () => CanvasNodeData[];
+    getConnections: () => CanvasConnection[];
+    updateMetadata: (nodeId: string, patch: CanvasNodeMetadata) => void;
+    applyOps: (ops: CanvasAgentOp[]) => void;
+    storage: PluginStorage;
+    ai: CanvasPluginAi;
+};
+
+// 插件贡献给任意节点右键菜单的动作
+export type CanvasPluginNodeAction = {
+    id: string;
+    label: string;
+    icon?: ReactNode;
+    run: (context: CanvasPluginActionContext) => void | Promise<void>;
+};
+
 // 插件包(默认导出对象,或返回它的工厂函数)
 export type CanvasPlugin = {
     id: string; // 唯一,kebab-case
@@ -326,6 +346,8 @@ export type CanvasPlugin = {
     minAppVersion?: string;
     css?: string; // 插件样式,启用时自动注入、卸载/禁用时自动清理
     nodes: CanvasNodeDefinition[];
+    // 贡献给任意节点右键菜单的动作;不适用时返回 []
+    nodeActions?: (node: CanvasNodeData) => CanvasPluginNodeAction[];
     setup?: (app: CanvasPluginApp) => void | (() => void);
 };
 

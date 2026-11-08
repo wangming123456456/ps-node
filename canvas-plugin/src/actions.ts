@@ -110,7 +110,7 @@ export async function refreshDocs(settings: PsSettings): Promise<PsDoc[]> {
 }
 
 /** blob:/http(s) 地址先转成 dataURL：PS 侧只能按 dataURL 写临时文件。 */
-async function toDataUrl(url: string): Promise<string> {
+export async function toDataUrl(url: string): Promise<string> {
     if (!url) return "";
     if (url.startsWith("data:")) return url;
     const response = await fetch(url);

@@ -99,7 +99,7 @@ UXP 第三方插件没有签名安装包，走「开发者模式 + 手动放目�
 方式 A：公网（推荐，别的机器直接用）
 
 ```
-https://cdn.jsdelivr.net/gh/wangming123456456/ps-node@v0.1.12/dist/ps.js
+https://cdn.jsdelivr.net/gh/wangming123456456/ps-node@v0.1.13/dist/ps.js
 ```
 
 方式 B：本地静态服务（改了源码后用这个）
@@ -133,6 +133,17 @@ node -e "const http=require('http'),fs=require('fs'),path=require('path');http.c
 | 目标文档 | 推送到哪个 PS 文档；默认「跟随当前文档」 |
 | 输出尺寸 | 取回时的最长边（1024 / 1536 / 2048 / 原图） |
 | 中继地址 | 修改中继 url/token 并测试连接 |
+
+### 任意图片节点右键
+
+插件同时给画布上所有「图片」节点加了右键菜单，不需要连 PS 节点：
+
+| 菜单项 | 作用 |
+|---|---|
+| 推送到 PS | 把这张图推到 PS（有选区时贴回选区） |
+| 从 PS 取回 | 把 PS 当前画面（有选区则取选区）写回这张图 |
+
+前提：PS 面板已打开并连上中继；宿主需要包含 `nodeActions` 支持（`aigc-studio` 分支 `feat/image-edit`，提交 4a1a242 起）。
 | 推送 | 把上游生成图（没有则用节点自身内容）贴进 PS 新图层 |
 | 取回 | 把 PS 当前文档画面拉回节点内容 |
 
