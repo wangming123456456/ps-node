@@ -657,47 +657,7 @@ async function refreshShot() {
     }
 }
 
-async function sendCurrentToCanvas() {
-    if (shotBusy) return;
-    shotBusy = true;
-    setStatus("ok", "发送到画布…");
-    try {
-        const doc = app.activeDocument;
-        if (!doc) throw new Error("PS 里没有打开的文档");
-        const exported = await exportMergedImage({ maxEdge: 2048 });
-        await requestCanvas("sync", { image: exported.image, doc: doc.name }, 60000);
-        log("当前画面已发送到画布");
-        setStatus("ok", "已发送到画布");
-    } catch (error) {
-        log(`发送到画布失败：${messageOf(error)}`);
-        setStatus("error", "发送失败");
-    } finally {
-        shotBusy = false;
-        void refreshShot();
-    }
-}
-
-async function receiveFromCanvas() {
-    if (shotBusy) return;
-    shotBusy = true;
-    setStatus("ok", "从画布接收…");
-    try {
-        const data = await requestCanvas("latest", {}, 60000);
-        if (!data || !data.image) throw new Error("画布上没有可接收的图（先取回或推送一次）");
-        const time = new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false });
-        const doc = currentDocName();
-        const result = doc ? await placeImageAsLayer(data.image, doc, `画布 ${time}`) : await openImageAsNewDocument(data.image);
-        log(`已从画布接收：${result.layer || result.doc}`);
-        setStatus("ok", "已从画布接收");
-        refreshDocumentInfo();
-    } catch (error) {
-        log(`从画布接收失败：${messageOf(error)}`);
-        setStatus("error", "接收失败");
-    } finally {
-        shotBusy = false;
-        void refreshShot();
-    }
-}
+// 画布同步入口统一放到画布侧（PS 节点推送/取回、图片节点右键），PS 面板不再提供这两个按钮。
 
 // ---------------------------------------------------------------------------
 // 生成（请求画布宿主 AI 执行）
@@ -914,10 +874,6 @@ function boot() {
         });
     const shotRefresh = el("shot-refresh");
     if (shotRefresh) shotRefresh.addEventListener("click", () => void refreshShot());
-    const sendCanvas = el("send-canvas");
-    if (sendCanvas) sendCanvas.addEventListener("click", () => void sendCurrentToCanvas());
-    const recvCanvas = el("recv-canvas");
-    if (recvCanvas) recvCanvas.addEventListener("click", () => void receiveFromCanvas());
     const logToggle = el("log-toggle");
     if (logToggle)
         logToggle.addEventListener("click", () => {
