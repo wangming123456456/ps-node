@@ -320,6 +320,19 @@
                 flex: none;
             }
 
+            /* UXP 对 flex gap 渲染不稳定，用 margin 保证卡片真实间距 12px */
+            .settings__group {
+                margin: 0 0 12px;
+            }
+
+            .settings__group:last-of-type {
+                margin-bottom: 0;
+            }
+
+            .settings__head {
+                margin-bottom: 12px;
+            }
+
             .section__title,
             .settings__head-row {
                 display: flex;
