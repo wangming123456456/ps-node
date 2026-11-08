@@ -56,12 +56,15 @@ function isDocumentMissing(error: unknown): boolean {
     return text.includes("文档不存在") || text.includes("没有打开的文档");
 }
 
-async function pushLayer(settings: PsSettings, image: string, doc: string | undefined, layerName: string) {
+export type PsSelection = { left: number; top: number; right: number; bottom: number };
+
+async function pushLayer(settings: PsSettings, image: string, doc: string | undefined, layerName: string, selection?: PsSelection) {
     return runCommand<{ doc: string; layer?: string; width?: number; height?: number }>(endpointOf(settings), "push", {
         image,
         mode: "layer",
         doc,
         layerName,
+        selection,
     });
 }
 
@@ -74,7 +77,10 @@ async function pushNewDocument(settings: PsSettings, image: string) {
 }
 
 async function pullImage(settings: PsSettings, doc: string | undefined) {
-    return runCommand<{ image: string; doc: string }>(endpointOf(settings), "pull", { doc, maxEdge: settings.maxEdge });
+    return runCommand<{ image: string; doc: string; width?: number; height?: number; selection?: PsSelection }>(endpointOf(settings), "pull", {
+        doc,
+        maxEdge: settings.maxEdge,
+    });
 }
 
 function fail(ctx: CanvasNodeContext, error: unknown): void {
@@ -145,15 +151,16 @@ export async function pushToPs(ctx: CanvasNodeContext, settings: PsSettings): Pr
     }
     begin(ctx, "pushing");
     const name = layerName();
+    const selection = (ctx.node.metadata?.psSelection as PsSelection | null | undefined) || undefined;
     try {
         const target = settings.doc || readPsDoc(ctx);
         let data;
         try {
-            data = await pushLayer(settings, image, target || undefined, name);
+            data = await pushLayer(settings, image, target || undefined, name, selection);
         } catch (error) {
             if (!isDocumentMissing(error)) throw error;
             try {
-                data = await pushLayer(settings, image, undefined, name);
+                data = await pushLayer(settings, image, undefined, name, selection);
             } catch (retryError) {
                 if (!isDocumentMissing(retryError)) throw retryError;
                 data = await pushNewDocument(settings, image);
@@ -175,7 +182,13 @@ export async function pullFromPs(ctx: CanvasNodeContext, settings: PsSettings): 
             if (!isDocumentMissing(error)) throw error;
             data = await pullImage(settings, undefined);
         }
-        ctx.updateMetadata({ content: data.image, psStatus: "done", psDoc: data.doc, psError: "" });
+        ctx.updateMetadata({
+            content: data.image,
+            psStatus: "done",
+            psDoc: data.doc,
+            psError: "",
+            psSelection: data.selection ?? null,
+        });
     } catch (error) {
         fail(ctx, error);
     }

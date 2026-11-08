@@ -568,9 +568,28 @@ async function handle(command, payload) {
             if (!image) return { ok: false, error: "缺少图片数据" };
             if (payload.mode === "newDoc") return { ok: true, data: await openImageAsNewDocument(image) };
             if (!app.documents.length) return { ok: false, error: "PS 里没有打开的文档" };
+            // 从画布取回选区后，推送默认贴回原来的选区位置
+            if (payload.selection && payload.selection.left !== undefined) {
+                return { ok: true, data: await placeImageInSelection(image, payload.selection, payload.layerName) };
+            }
             return { ok: true, data: await placeImageAsLayer(image, payload.doc, payload.layerName) };
         }
         if (command === "pull") {
+            // 有选区时只取选区内容，没有选区才取整幅拼合图
+            const bounds = await resolveSelectionBounds();
+            if (bounds) {
+                const cropped = await exportSelectionReference(bounds);
+                return {
+                    ok: true,
+                    data: {
+                        image: cropped.image,
+                        doc: currentDocName(),
+                        width: cropped.width,
+                        height: cropped.height,
+                        selection: bounds,
+                    },
+                };
+            }
             return { ok: true, data: await exportMergedImage(payload || {}) };
         }
         return { ok: false, error: `未知命令：${command}` };

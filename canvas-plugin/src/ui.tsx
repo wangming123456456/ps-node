@@ -271,7 +271,7 @@ export function NodePanel({ ctx }: CanvasNodePanelProps) {
             </div>
 
             <div className="ps-hint ps-hint--tip">
-                生成 / 改图用图片节点：图片节点 → 本节点（推送结果）；本节点 → 图片节点（PS 画面当参考）
+                有选区时：取回=只取选区，推送=贴回选区；没选区时取整幅图。生成 / 改图用图片节点
             </div>
 
             <details className="ps-details">
