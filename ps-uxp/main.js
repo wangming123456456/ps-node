@@ -951,7 +951,12 @@ function boot() {
             refreshSettingsLog();
         });
     const closeSettings = el("close-settings");
-    if (closeSettings) closeSettings.addEventListener("click", () => showView("main"));
+    if (closeSettings)
+        closeSettings.addEventListener("click", () => {
+            showView("main");
+            refreshDocumentInfo();
+            void refreshShot();
+        });
 }
 
 entrypoints.setup({
@@ -990,8 +995,6 @@ function bootMain() {
             if (overlay) overlay.hidden = true;
             void refreshShot();
         });
-    const shotRefresh = el("shot-refresh");
-    if (shotRefresh) shotRefresh.addEventListener("click", () => void refreshShot());
 
     // 预览开关：参考画面 / 生成结果
     const previewSwitch = el("preview-ref-switch");
