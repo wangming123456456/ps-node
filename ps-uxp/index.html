@@ -5,12 +5,12 @@
         <title>PS 节点</title>
         <style>
             /* ============================================================
-               参考 UI 规范（ComfyUI Settings 风格）
-               层级：窗口 #333 > 卡片 #262626 > 控件 #1b1b1b（越往里越深）
-               间距：卡片间距 12 / 卡片内边距 16 / 行距 12 / 标签-控件 6
-               控件：高 38、圆角 10、单层深色填充无边框
-               圆角：卡片 12 / 控件 10
-               字号：标题 13 / 控件 12.5 / 标签 11.5 / 提示 11
+               PS 面板 UI 规范（ComfyUI Settings 风格，唯一 token 表）
+               层级：窗口 #333 > 卡片 #262626 > 控件 #1b1b1b
+               卡片：圆角 14 / 内边距 16 / 卡片间距 12 / 卡片内行距 12
+               控件：高 38 / 圆角 10；复选框 18；标签-控件 6
+               字号：卡片标题 14（右 meta 11 灰）/ 控件 13 / 标签 12 / 提示 11
+               纵向间距一律用 margin（UXP 的 flex gap 在纵向不可靠）
                ============================================================ */
             :root {
                 color-scheme: dark;
@@ -21,8 +21,9 @@
                 --text: #eaeaea;
                 --label: #a0a0a0;
                 --hint: #808080;
+                --track: #4a4a4a;
                 --hover: rgba(255, 255, 255, 0.08);
-                --thumb: rgba(255, 255, 255, 0.22);
+                --scroll: rgba(255, 255, 255, 0.22);
             }
 
             @media (prefers-color-scheme: light) {
@@ -35,8 +36,9 @@
                     --text: #1a1a1a;
                     --label: #666666;
                     --hint: #8a8a8a;
+                    --track: #c8c8c8;
                     --hover: rgba(0, 0, 0, 0.06);
-                    --thumb: rgba(0, 0, 0, 0.25);
+                    --scroll: rgba(0, 0, 0, 0.25);
                 }
             }
 
@@ -47,7 +49,7 @@
                 background: var(--window);
                 color: var(--text);
                 font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
-                font-size: 12.5px;
+                font-size: 13px;
                 line-height: 1.5;
                 overflow: hidden;
             }
@@ -56,10 +58,16 @@
                 display: none !important;
             }
 
+            /* UXP 原生 button 自带 margin/最小宽度，这里统一归零 */
+            button {
+                margin: 0;
+            }
+
+            /* ---------- 页面骨架：纵向节奏全部用 margin ---------- */
+
             .app {
                 display: flex;
                 flex-direction: column;
-                gap: 12px;
                 height: 100vh;
                 box-sizing: border-box;
                 padding: 12px;
@@ -72,7 +80,7 @@
             }
 
             .app::-webkit-scrollbar-thumb {
-                background: var(--thumb);
+                background: var(--scroll);
                 border-radius: 4px;
             }
 
@@ -80,28 +88,58 @@
                 background: transparent;
             }
 
-            .row {
+            /* 间距 token：12 / 6 / 0 */
+            .m12 {
+                margin-bottom: 12px;
+            }
+
+            .m6 {
+                margin-bottom: 6px;
+            }
+
+            .m0 {
+                margin-bottom: 0;
+            }
+
+            /* ---------- 顶部状态行 ---------- */
+
+            .bar {
                 display: flex;
                 align-items: center;
-                gap: 8px;
-                min-width: 0;
+                min-height: 32px;
                 flex: none;
+                padding: 0 2px;
             }
 
-            .row--between {
-                justify-content: space-between;
+            .bar__status {
+                display: flex;
+                align-items: center;
+                flex: 1 1 auto;
+                min-width: 0;
             }
 
-            .spacer {
-                flex: 1;
+            .bar__text {
+                font-size: 12px;
+                color: var(--label);
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            .bar__actions {
+                display: flex;
+                align-items: center;
+                justify-content: flex-end;
+                flex: none;
             }
 
             .dot {
-                width: 7px;
-                height: 7px;
-                border-radius: 50%;
+                width: 8px;
+                height: 8px;
+                border-radius: 4px;
                 background: var(--label);
                 flex: none;
+                margin-right: 8px;
             }
 
             .dot.ok {
@@ -114,7 +152,7 @@
 
             .muted {
                 color: var(--label);
-                font-size: 11.5px;
+                font-size: 11px;
                 min-width: 0;
                 white-space: nowrap;
                 overflow: hidden;
@@ -128,14 +166,21 @@
                 flex: none;
             }
 
+            /* ---------- 文字按钮 ---------- */
+
             .textbtn {
                 appearance: none;
-                border: 0;
+                border-width: 0;
+                border-style: none;
+                border-color: transparent;
                 background: transparent;
                 color: var(--label);
                 font: inherit;
                 font-size: 12px;
-                padding: 6px 10px;
+                height: 30px;
+                min-height: 0;
+                min-width: 0;
+                padding: 0 8px;
                 border-radius: 8px;
                 cursor: pointer;
                 white-space: nowrap;
@@ -152,74 +197,16 @@
                 cursor: not-allowed;
             }
 
-            .btn {
-                appearance: none;
-                display: inline-flex;
-                align-items: center;
-                justify-content: center;
-                gap: 4px;
-                height: 38px;
-                padding: 0 16px;
-                border: 0;
-                border-radius: 10px;
-                background: var(--btn);
-                color: var(--text);
-                font: inherit;
-                font-size: 12.5px;
-                cursor: pointer;
-                white-space: nowrap;
-                flex: none;
+            #connect {
+                margin-left: 4px;
             }
 
-            .btn:hover:not(:disabled) {
-                filter: brightness(1.1);
-            }
-
-            .btn:disabled {
-                opacity: 0.4;
-                cursor: not-allowed;
-            }
-
-            .btn--primary {
-                background: var(--text);
-                color: var(--window);
-                font-weight: 600;
-            }
-
-            .btn--grow {
-                flex: 1;
-            }
-
-            .bar {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                gap: 8px;
-                min-height: 30px;
-                flex: none;
-                padding: 0 2px;
-            }
-
-            .bar__status {
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                min-width: 0;
-            }
-
-            .bar__text {
-                font-size: 12px;
-                color: var(--label);
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
-            }
+            /* ---------- 文档行 ---------- */
 
             .docline {
                 display: flex;
                 align-items: center;
-                gap: 8px;
-                min-width: 0;
+                min-height: 32px;
                 flex: none;
                 padding: 0 2px;
             }
@@ -228,7 +215,9 @@
                 color: var(--text);
                 font-size: 12px;
                 font-weight: 600;
-                max-width: 44%;
+                flex: 0 1 auto;
+                min-width: 40px;
+                max-width: 38%;
                 overflow: hidden;
                 text-overflow: ellipsis;
                 white-space: nowrap;
@@ -236,17 +225,27 @@
 
             .docline__meta,
             .docline__state {
+                color: var(--label);
+                font-size: 11px;
+                flex: 0 1 auto;
+                min-width: 0;
+                margin-left: 8px;
                 overflow: hidden;
                 text-overflow: ellipsis;
                 white-space: nowrap;
-                font-size: 11.5px;
             }
+
+            #refresh {
+                margin-left: auto;
+            }
+
+            /* ---------- 预览 ---------- */
 
             .preview {
                 position: relative;
-                flex: 1 1 200px;
-                min-height: 170px;
-                border-radius: 12px;
+                flex: 1 1 auto;
+                min-height: 200px;
+                border-radius: 14px;
                 background: var(--control);
                 overflow: hidden;
             }
@@ -254,8 +253,6 @@
             .preview__img {
                 position: absolute;
                 top: 0;
-                right: 0;
-                bottom: 0;
                 left: 0;
                 width: 100%;
                 height: 100%;
@@ -270,15 +267,16 @@
             .preview__empty {
                 position: absolute;
                 top: 0;
+                left: 0;
                 right: 0;
                 bottom: 0;
-                left: 0;
                 display: flex;
                 align-items: center;
                 justify-content: center;
                 color: var(--hint);
-                font-size: 11.5px;
+                font-size: 11px;
                 padding: 0 16px;
+                box-sizing: border-box;
                 text-align: center;
             }
 
@@ -289,13 +287,12 @@
                 bottom: 0;
                 display: flex;
                 align-items: center;
-                gap: 8px;
                 padding: 12px;
                 background: linear-gradient(to top, rgba(0, 0, 0, 0.55), transparent);
             }
 
             .preview__label {
-                font-size: 11.5px;
+                font-size: 11px;
                 color: var(--label);
             }
 
@@ -303,12 +300,27 @@
                 cursor: pointer;
             }
 
-            /* 卡片：参考图规范 */
+            .spacer {
+                flex: 1 1 auto;
+            }
+
+            .row {
+                display: flex;
+                align-items: center;
+                min-width: 0;
+                flex: none;
+            }
+
+            .row--between {
+                justify-content: space-between;
+            }
+
+            /* ---------- 卡片 ---------- */
+
             .controls,
             .settings__group {
                 display: flex;
                 flex-direction: column;
-                gap: 12px;
                 flex: none;
                 padding: 16px;
                 border-radius: 14px;
@@ -320,25 +332,11 @@
                 flex: none;
             }
 
-            /* UXP 对 flex gap 渲染不稳定，用 margin 保证卡片真实间距 12px */
-            .settings__group {
-                margin: 0 0 12px;
-            }
-
-            .settings__group:last-of-type {
-                margin-bottom: 0;
-            }
-
-            .settings__head {
-                margin-bottom: 12px;
-            }
-
-            .section__title,
+            /* 卡片标题行：左标题 + 右灰色 meta */
             .settings__head-row {
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
-                gap: 8px;
             }
 
             .settings__title {
@@ -353,15 +351,20 @@
                 flex: none;
             }
 
+            /* ---------- 开关（div 实现：UXP 的 button 不渲染子元素） ---------- */
+
             .switch {
                 position: relative;
+                display: block;
                 width: 36px;
                 height: 20px;
                 flex: none;
                 padding: 0;
-                border: 0;
-                border-radius: 999px;
-                background: var(--btn);
+                border-width: 0;
+                border-style: none;
+                border-color: transparent;
+                border-radius: 10px;
+                background: var(--track);
                 cursor: pointer;
                 appearance: none;
             }
@@ -374,27 +377,41 @@
                 position: absolute;
                 top: 2px;
                 left: 2px;
+                display: block;
                 width: 16px;
                 height: 16px;
-                border-radius: 50%;
-                background: var(--card);
-                transition: transform 0.15s ease;
+                border-radius: 8px;
+                background: #d0d0d0;
             }
 
             .switch[aria-pressed="true"] .switch__thumb {
-                transform: translateX(16px);
+                left: 18px;
+                background: var(--card);
             }
 
             .switch__label {
-                font-size: 11.5px;
+                font-size: 12px;
                 color: var(--label);
                 flex: none;
             }
 
+            .section__title {
+                font-size: 14px;
+                font-weight: 600;
+                color: var(--text);
+                flex: none;
+                margin-right: 10px;
+            }
+
+            #preview-ref-switch {
+                margin-right: 10px;
+            }
+
+            /* ---------- 复选框 ---------- */
+
             .check {
-                display: inline-flex;
+                display: flex;
                 align-items: center;
-                gap: 10px;
                 color: var(--text);
                 font-size: 13px;
                 cursor: default;
@@ -404,51 +421,211 @@
             .check input[type="checkbox"] {
                 width: 18px;
                 height: 18px;
-                margin: 0;
+                margin: 0 10px 0 0;
                 flex: none;
                 accent-color: var(--text);
             }
-            .input,
-            .textarea {
+
+            /* ---------- 输入控件：一层深色底 + 无原生边框 ---------- */
+
+            .field {
+                display: flex;
+                flex-direction: column;
+            }
+
+            .field__label {
+                font-size: 12px;
+                color: var(--label);
+                margin-bottom: 6px;
+            }
+
+            .field-shell {
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                background: var(--control);
+                border-radius: 10px;
+                overflow: hidden;
+                flex: none;
+            }
+
+            .field-shell--area {
+                height: 76px;
+            }
+
+            .field-shell .input,
+            .field-shell .textarea {
                 width: 100%;
                 box-sizing: border-box;
-                border: 0;
+                margin: 0;
+                border-width: 0;
+                border-style: none;
+                border-color: transparent;
                 border-radius: 10px;
                 background: var(--control);
                 color: var(--text);
                 font: inherit;
                 font-size: 13px;
                 flex: none;
+                appearance: none;
+                -webkit-appearance: none;
+                outline: none;
+                box-shadow: none;
+                background-image: none;
+                border-image: none;
             }
 
-            .input {
+            .field-shell .input {
                 height: 38px;
                 padding: 0 12px;
+                line-height: 38px;
             }
 
-            /* 绘图区模型行：下拉自适应，按钮保持可见 */
-            .controls .row .input {
-                width: auto;
-                flex: 1 1 auto;
-            }
-
-            .textarea {
+            .field-shell .textarea {
                 height: 76px;
                 min-height: 76px;
-                resize: none;
                 padding: 10px 12px;
                 line-height: 1.5;
+                resize: none;
             }
 
-            .input:focus,
-            .textarea:focus {
+            .field-shell .input:focus,
+            .field-shell .textarea:focus {
                 outline: none;
-                box-shadow: inset 0 0 0 1px var(--label);
+                box-shadow: none;
             }
 
-            .input option {
-                background: var(--card);
+            input::placeholder,
+            textarea::placeholder {
+                color: var(--hint);
+            }
+
+            /* ---------- 下拉：原生 select 只存值（UXP 无法改它的原生外观），
+               外观和弹出菜单都由 JS + div 自绘 ---------- */
+
+            .picker {
+                position: relative;
+                height: 38px;
+                flex: none;
+            }
+
+            .picker--grow {
+                flex: 1 1 auto;
+                min-width: 0;
+                margin-right: 8px;
+            }
+
+            .picker__native {
+                display: none;
+            }
+
+            .picker__face {
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: 38px;
+                display: flex;
+                align-items: center;
+                padding: 0 12px;
+                border-radius: 10px;
+                background: var(--control);
+                cursor: pointer;
+            }
+
+            .picker__label {
+                flex: 1 1 auto;
+                min-width: 0;
+                font-size: 13px;
                 color: var(--text);
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            .picker__arrow {
+                flex: none;
+                margin-left: 8px;
+                font-size: 11px;
+                color: var(--label);
+            }
+
+            .picker-menu {
+                position: absolute;
+                padding: 4px;
+                border-radius: 10px;
+                background: #2f2f2f;
+            }
+
+            .picker-menu__item {
+                height: 32px;
+                display: flex;
+                align-items: center;
+                padding: 0 10px;
+                border-radius: 8px;
+                font-size: 13px;
+                color: var(--text);
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                cursor: pointer;
+            }
+
+            .picker-menu__item:hover {
+                background: var(--hover);
+            }
+
+            .picker-menu__item--on {
+                background: var(--text);
+                color: var(--window);
+                font-weight: 600;
+            }
+
+            /* ---------- 按钮 ---------- */
+
+            .btn {
+                appearance: none;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                height: 38px;
+                padding: 0 16px;
+                border-width: 0;
+                border-style: none;
+                border-color: transparent;
+                border-radius: 10px;
+                background: var(--btn);
+                color: var(--text);
+                font: inherit;
+                font-size: 13px;
+                cursor: pointer;
+                white-space: nowrap;
+                flex: none;
+                min-width: 0;
+            }
+
+            .btn:hover:not(:disabled) {
+                background: #454545;
+            }
+
+            .btn:disabled {
+                opacity: 0.4;
+                cursor: not-allowed;
+            }
+
+            .btn--primary {
+                background: var(--text);
+                color: var(--window);
+                font-weight: 600;
+            }
+
+            .btn--grow {
+                flex: 1 1 0;
+                min-width: 0;
+            }
+
+            #setting-apply {
+                margin-left: 8px;
             }
 
             .gen__state {
@@ -456,7 +633,7 @@
                 overflow: hidden;
                 text-overflow: ellipsis;
                 white-space: nowrap;
-                font-size: 11.5px;
+                font-size: 11px;
                 color: var(--label);
             }
 
@@ -464,63 +641,32 @@
                 color: #ef4444;
             }
 
-            /* ---------------- 设置视图 ---------------- */
+            /* ---------- 分段控件：整行三等分，选中白底 ---------- */
 
-            .settings__head {
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                flex: none;
-                padding: 2px;
-                white-space: nowrap;
-            }
-
-            .settings__head .section__title {
-                flex: none;
-            }
-
-            .settings__head .muted {
-                flex: 1 1 auto;
-                text-align: right;
-            }
-
-            .field {
-                display: flex;
-                flex-direction: column;
-                gap: 6px;
-            }
-
-            .field__label {
-                font-size: 12px;
-                color: var(--label);
-            }
-
-            /* 分段控件：整行三等分 */
             .seg {
                 display: flex;
                 width: 100%;
                 height: 38px;
-                align-items: center;
-                gap: 2px;
-                padding: 3px;
                 box-sizing: border-box;
+                padding: 3px;
                 border-radius: 10px;
                 background: var(--control);
             }
 
             .seg button {
                 appearance: none;
-                flex: 1;
+                flex: 1 1 0;
                 min-width: 0;
-                border: 0;
+                height: 32px;
+                border-width: 0;
+                border-style: none;
+                border-color: transparent;
+                border-radius: 8px;
                 background: transparent;
                 color: var(--label);
                 font: inherit;
                 font-size: 13px;
-                height: 32px;
-                border-radius: 8px;
                 cursor: pointer;
-                font-variant-numeric: tabular-nums;
             }
 
             .seg button:hover {
@@ -534,153 +680,139 @@
                 font-weight: 600;
             }
 
+            /* ---------- 设置视图 ---------- */
+
+            .settings__head {
+                display: flex;
+                align-items: center;
+                min-height: 32px;
+                flex: none;
+                padding: 0 2px;
+            }
+
+            .settings__head .section__title {
+                margin-right: 0;
+                margin-left: 4px;
+            }
+
+            .settings__head .muted {
+                margin-left: 6px;
+            }
+
+            #settings-dot {
+                margin-right: 0;
+            }
+
+            .log-shell {
+                height: 160px;
+                box-sizing: border-box;
+                border-radius: 10px;
+                background: var(--control);
+                overflow-y: auto;
+                overflow-x: hidden;
+                flex: none;
+            }
+
+            .log-shell::-webkit-scrollbar {
+                width: 8px;
+            }
+
+            .log-shell::-webkit-scrollbar-thumb {
+                background: var(--scroll);
+                border-radius: 4px;
+            }
+
+            .log-shell::-webkit-scrollbar-track {
+                background: transparent;
+            }
+
             #settings-log {
                 margin: 0;
                 padding: 10px;
-                min-height: 76px;
-                max-height: 160px;
-                overflow: auto;
-                border: 0;
-                border-radius: 10px;
-                background: var(--control);
+                border-width: 0;
+                border-style: none;
+                border-radius: 0;
+                background: transparent;
                 color: var(--label);
                 font-size: 11px;
                 line-height: 1.5;
                 white-space: pre-wrap;
                 word-break: break-word;
-            }        </style>
+            }
+        </style>
     </head>
     <body>
         <div class="app" id="view-main">
-            <div class="bar">
-                <div class="bar__status">
-                    <span id="dot" class="dot"></span>
-                    <span id="status" class="bar__text">未连接</span>
-                </div>
-                <div class="row">
-                    <button id="open-settings" type="button" class="textbtn" title="设置">⚙ 设置</button>
-                    <button id="connect" type="button" class="textbtn">连接</button>
-                </div>
+            <div class="bar m12">
+                <div class="bar__status"><span id="dot" class="dot"></span><span id="status" class="bar__text">未连接</span></div>
+                <div class="bar__actions"><button id="open-settings" type="button" class="textbtn" title="设置">⚙ 设置</button><button id="connect" type="button" class="textbtn">连接</button></div>
             </div>
 
-            <div class="docline">
-                <span id="doc-name" class="docline__name">没有打开的文档</span>
-                <span id="doc-meta" class="muted"></span>
-                <span id="doc-state" class="docline__state muted"></span>
-                <button id="refresh" type="button" class="textbtn">刷新</button>
+            <div class="docline m12"><span id="doc-name" class="docline__name">没有打开的文档</span><span id="doc-meta" class="docline__meta"></span><span id="doc-state" class="docline__state"></span><button id="refresh" type="button" class="textbtn">刷新</button></div>
+
+            <div class="preview m12" id="preview-box">
+                <img id="shot-image" class="preview__img" alt="" hidden /><img id="preview" class="preview__img preview__img--result" alt="" hidden /><span id="preview-empty" class="preview__empty">没有打开的文档</span>
+                <div id="result-overlay" class="preview__overlay" hidden><span class="preview__label">生成结果</span><span class="spacer"></span><button id="gen-apply" type="button" class="btn btn--primary" disabled>添加到图层</button><button id="result-close" type="button" class="btn">返回画面</button></div>
             </div>
 
-            <div class="preview" id="preview-box">
-                <img id="shot-image" class="preview__img" alt="" hidden />
-                <img id="preview" class="preview__img preview__img--result" alt="" hidden />
-                <span id="preview-empty" class="preview__empty">没有打开的文档</span>
-                <div id="result-overlay" class="preview__overlay" hidden>
-                    <span class="preview__label">生成结果</span>
-                    <span class="spacer"></span>
-                    <button id="gen-apply" type="button" class="btn btn--primary" disabled>添加到图层</button>
-                    <button id="result-close" type="button" class="btn">返回画面</button>
-                </div>
-            </div>
-
-
-            <div class="controls">
-                <div class="row row--between">
-                    <div class="row">
-                        <span class="section__title">AI 生成</span>
-                        <button id="preview-ref-switch" type="button" class="switch" role="switch" aria-pressed="true" title="预览：参考画面 / 生成结果">
-                            <span class="switch__thumb"></span>
-                        </button>
-                        <span class="switch__label" id="preview-ref-label">参考</span>
-                    </div>
+            <div class="controls m12" id="controls-card">
+                <div class="row row--between m12">
+                    <div class="row"><span class="section__title">AI 生成</span><div id="preview-ref-switch" class="switch" role="switch" aria-pressed="true" title="预览：参考画面 / 生成结果"><span class="switch__thumb"></span></div><span class="switch__label" id="preview-ref-label">参考</span></div>
                     <div class="check"><input id="ref-toggle" type="checkbox" checked /><span>参考当前画面</span></div>
                 </div>
 
-                <div class="row">
-                    <select id="model-select" class="input">
-                        <option value="">默认模型</option>
-                    </select>
+                <div class="row m12">
+                    <div class="picker picker--grow" id="model-picker"><select id="model-select" class="picker__native"><option value="">默认模型</option></select><div class="picker__face" id="model-face"><span class="picker__label" id="model-label">默认模型</span><span class="picker__arrow">▾</span></div></div>
                     <button id="render" type="button" class="btn btn--primary">渲染 ▶</button>
                 </div>
 
-                <textarea id="prompt" class="textarea" placeholder="描述你想要的画面…"></textarea>
+                <div class="field-shell field-shell--area m12"><textarea id="prompt" class="textarea" placeholder="描述你想要的画面…"></textarea></div>
 
-                <span id="gen-state" class="muted gen__state">就绪</span>
+                <span id="gen-state" class="gen__state">就绪</span>
             </div>
 
             <div class="hint">设置：点右上角 ⚙ 设置</div>
         </div>
+
         <script src="main.js"></script>
+
         <div class="app" id="view-settings" hidden>
-            <div class="settings__head">
-                <button id="close-settings" type="button" class="textbtn">‹ 返回</button>
-                <span class="section__title">设置</span>
-                <span class="spacer"></span>
-                <span class="dot" id="settings-dot"></span>
-                <span class="muted" id="settings-status">未连接</span>
+            <div class="settings__head m12"><button id="close-settings" type="button" class="textbtn">‹ 返回</button><span class="section__title">设置</span><span class="spacer"></span><span class="dot" id="settings-dot"></span><span class="muted" id="settings-status">未连接</span></div>
+
+            <div class="settings__group m12">
+                <div class="settings__head-row m12"><div class="settings__title">连接</div><span class="settings__meta">中继</span></div>
+                <div class="field-shell m12"><input id="setting-url" class="input" type="text" placeholder="http://localhost:23310" /></div>
+                <div class="field-shell m12"><input id="setting-token" class="input" type="text" placeholder="token（中继要求时填写，可留空）" /></div>
+                <div class="row m0"><button id="setting-test" type="button" class="btn btn--grow">测试连接</button><button id="setting-apply" type="button" class="btn btn--grow">应用并重连</button></div>
             </div>
 
-            <div class="settings__group">
-                <div class="settings__head-row">
-                    <div class="settings__title">连接</div>
-                    <span class="settings__meta">中继</span>
+            <div class="settings__group m12" id="settings-model-card">
+                <div class="settings__head-row m12"><div class="settings__title">生成</div><span class="settings__meta">画布模型</span></div>
+                <div class="field m12"><span class="field__label">默认模型</span>
+                    <div class="picker" id="setting-picker"><select id="setting-model" class="picker__native"><option value="">默认模型</option></select><div class="picker__face" id="setting-model-face"><span class="picker__label" id="setting-model-label">默认模型</span><span class="picker__arrow">▾</span></div></div>
                 </div>
-                <input id="setting-url" class="input" type="text" placeholder="http://localhost:23310" />
-                <input id="setting-token" class="input" type="text" placeholder="token（中继要求时填写，可留空）" />
-                <div class="row">
-                    <button id="setting-test" type="button" class="btn btn--grow">测试连接</button>
-                    <button id="setting-apply" type="button" class="btn btn--grow">应用并重连</button>
-                </div>
+                <div class="check m12"><input id="setting-ref" type="checkbox" checked /><span>默认参考当前画面</span></div>
+                <div class="check m0"><input id="setting-auto-apply" type="checkbox" /><span>渲染后自动添加到图层</span></div>
             </div>
 
-            <div class="settings__group">
-                <div class="settings__head-row">
-                    <div class="settings__title">生成</div>
-                    <span class="settings__meta">画布模型</span>
+            <div class="settings__group m12">
+                <div class="settings__head-row m12"><div class="settings__title">预览</div><span class="settings__meta">输出</span></div>
+                <div class="field m12"><span class="field__label">预览最长边</span>
+                    <div class="seg" id="setting-preview-size"><button type="button" data-value="512">512</button><button type="button" data-value="1024">1024</button><button type="button" data-value="2048">2048</button></div>
                 </div>
-                <div class="field">
-                    <span class="field__label">默认模型</span>
-                    <select id="setting-model" class="input">
-                        <option value="">默认模型</option>
-                    </select>
-                </div>
-                <div class="check"><input id="setting-ref" type="checkbox" checked /><span>默认参考当前画面</span></div>
-                <div class="check"><input id="setting-auto-apply" type="checkbox" /><span>渲染后自动添加到图层</span></div>
+                <div class="check m0"><input id="setting-auto-refresh" type="checkbox" checked /><span>自动刷新预览</span></div>
             </div>
 
-            <div class="settings__group">
-                <div class="settings__head-row">
-                    <div class="settings__title">预览</div>
-                    <span class="settings__meta">输出</span>
-                </div>
-                <div class="field">
-                    <span class="field__label">预览最长边</span>
-                    <div class="seg" id="setting-preview-size">
-                        <button type="button" data-value="512">512</button>
-                        <button type="button" data-value="1024">1024</button>
-                        <button type="button" data-value="2048">2048</button>
-                    </div>
-                </div>
-                <div class="check"><input id="setting-auto-refresh" type="checkbox" checked /><span>自动刷新预览</span></div>
+            <div class="settings__group m12">
+                <div class="settings__head-row m12"><div class="settings__title">日志</div><span class="settings__meta">最近 200 条</span></div>
+                <div class="log-shell m12"><pre id="settings-log"></pre></div>
+                <div class="row m0"><span class="spacer"></span><button id="setting-log-clear" type="button" class="textbtn">清空日志</button></div>
             </div>
 
-            <div class="settings__group">
-                <div class="settings__head-row">
-                    <div class="settings__title">日志</div>
-                    <span class="settings__meta">最近 200 条</span>
-                </div>
-                <pre id="settings-log"></pre>
-                <div class="row">
-                    <span class="spacer"></span>
-                    <button id="setting-log-clear" type="button" class="textbtn">清空日志</button>
-                </div>
+            <div class="settings__group m0">
+                <div class="settings__head-row m12"><div class="settings__title">关于</div><span class="settings__meta">v0.1.24</span></div>
+                <div class="muted m0" id="settings-about">PS 节点 · 中继 / 画布双向通道</div>
             </div>
-
-            <div class="settings__group">
-                <div class="settings__head-row">
-                    <div class="settings__title">关于</div>
-                    <span class="settings__meta">v0.1.22</span>
-                </div>
-                <div class="muted" id="settings-about">PS 节点 · 中继 / 画布双向通道</div>
-            </div>
-        </div>    </body>
+        </div>
+    </body>
 </html>

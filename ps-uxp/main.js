@@ -100,6 +100,117 @@ function setStatus(kind, label) {
     if (stateNode) stateNode.textContent = relayConnected ? "中继已连接" : "中继未连接";
 }
 
+/** 让下拉外观层显示当前选中的模型名（原生 select 只负责存值）。 */
+function syncPickerLabel(selectId, labelId) {
+    const select = el(selectId);
+    const label = el(labelId);
+    if (!select || !label) return;
+    let text = "";
+    try {
+        const options = select.options;
+        const option = options && options[select.selectedIndex] ? options[select.selectedIndex] : null;
+        text = option ? option.textContent : "";
+    } catch (error) {
+        text = select.value || "";
+    }
+    label.textContent = text || "默认模型";
+}
+
+// ---------------------------------------------------------------------------
+// 模型下拉：UXP 没法给原生 select 做外观，所以 select 只存值，外观和菜单自绘
+// ---------------------------------------------------------------------------
+
+const PICKER_LIST = [
+    { faceId: "model-face", selectId: "model-select", labelId: "model-label", cardId: "controls-card" },
+    { faceId: "setting-model-face", selectId: "setting-model", labelId: "setting-model-label", cardId: "settings-model-card" },
+];
+
+let pickerOpenMenu = null;
+let pickerOpenConfig = null;
+
+function closePickerMenu() {
+    if (pickerOpenMenu && pickerOpenMenu.parentNode) {
+        try {
+            pickerOpenMenu.parentNode.removeChild(pickerOpenMenu);
+        } catch (error) {}
+    }
+    pickerOpenMenu = null;
+    pickerOpenConfig = null;
+}
+
+function readSelectOptions(select) {
+    const items = [];
+    try {
+        const options = select.options;
+        for (let index = 0; index < options.length; index += 1) {
+            const option = options[index];
+            items.push({ value: option.value, label: option.textContent || option.value });
+        }
+    } catch (error) {}
+    return items;
+}
+
+function openPickerMenu(config) {
+    if (pickerOpenMenu && pickerOpenConfig === config) {
+        closePickerMenu();
+        return;
+    }
+    closePickerMenu();
+    const select = el(config.selectId);
+    const face = el(config.faceId);
+    if (!select || !face) return;
+    const items = readSelectOptions(select);
+    const menu = document.createElement("div");
+    menu.className = "picker-menu";
+    const faceRect = face.getBoundingClientRect();
+    const menuHeight = items.length * 32 + 8;
+    const gap = 6;
+    let top = faceRect.top - gap - menuHeight;
+    let maxHeight = 0;
+    if (top < 8) {
+        maxHeight = Math.max(40, faceRect.top - gap - 8);
+        top = 8;
+    }
+    menu.style.position = "absolute";
+    menu.style.left = Math.round(faceRect.left) + "px";
+    menu.style.top = Math.round(top) + "px";
+    menu.style.width = Math.round(faceRect.width) + "px";
+    if (maxHeight > 0) {
+        menu.style.maxHeight = Math.round(maxHeight) + "px";
+        menu.style.overflowY = "auto";
+    }
+    const selectedIndex = typeof select.selectedIndex === "number" && select.selectedIndex >= 0 ? select.selectedIndex : 0;
+    items.forEach((item, itemIndex) => {
+        const row = document.createElement("div");
+        row.className = itemIndex === selectedIndex ? "picker-menu__item picker-menu__item--on" : "picker-menu__item";
+        row.textContent = item.label;
+        row.addEventListener("click", () => {
+            closePickerMenu();
+            select.value = item.value;
+            syncPickerLabel(config.selectId, config.labelId);
+            if (config.selectId === "setting-model") saveUxSettings({ model: item.value });
+            try {
+                select.dispatchEvent(new Event("change"));
+            } catch (error) {}
+        });
+        menu.appendChild(row);
+    });
+    const host = el(config.cardId) || document.body;
+    host.appendChild(menu);
+    pickerOpenMenu = menu;
+    pickerOpenConfig = config;
+}
+function setupPickers() {
+    PICKER_LIST.forEach((config) => {
+        const face = el(config.faceId);
+        if (face && !face.pickerBound) {
+            face.pickerBound = true;
+            face.addEventListener("click", () => openPickerMenu(config));
+        }
+        syncPickerLabel(config.selectId, config.labelId);
+    });
+}
+
 // ---------------------------------------------------------------------------
 // base64（UXP 不保证有 btoa/atob，自己编解码）
 // ---------------------------------------------------------------------------
@@ -809,6 +920,7 @@ async function refreshModels() {
         if (current && models.some((model) => model.value === current)) select.value = current;
         const preferred = uxSettings.model;
         if (preferred && models.some((model) => model.value === preferred)) select.value = preferred;
+        syncPickerLabel("model-select", "model-label");
         writeJsonStorage(MODELS_STORAGE_KEY, models);
         modelsLoaded = models.length > 0;
         setGenState(models.length ? "就绪" : "画布未配置模型", models.length === 0);
@@ -944,15 +1056,18 @@ function boot() {
     showView("main");
     bootMain();
     bootSettings();
+    setupPickers();
     const openSettings = el("open-settings");
     if (openSettings)
         openSettings.addEventListener("click", () => {
+            closePickerMenu();
             showView("settings");
             refreshSettingsLog();
         });
     const closeSettings = el("close-settings");
     if (closeSettings)
         closeSettings.addEventListener("click", () => {
+            closePickerMenu();
             showView("main");
             refreshDocumentInfo();
             void refreshShot();
@@ -984,6 +1099,8 @@ function bootMain() {
         });
     const renderButton = el("render");
     if (renderButton) renderButton.addEventListener("click", () => void renderImage());
+    const modelPickerSelect = el("model-select");
+    if (modelPickerSelect) modelPickerSelect.addEventListener("change", () => syncPickerLabel("model-select", "model-label"));
     const genApplyButton = el("gen-apply");
     if (genApplyButton) genApplyButton.addEventListener("click", () => void applyRender());
     const resultClose = el("result-close");
@@ -1073,7 +1190,11 @@ function bootSettings() {
             modelSelect.appendChild(option);
         });
         modelSelect.value = uxSettings.model || "";
-        modelSelect.addEventListener("change", () => saveUxSettings({ model: modelSelect.value }));
+        syncPickerLabel("setting-model", "setting-model-label");
+        modelSelect.addEventListener("change", () => {
+            saveUxSettings({ model: modelSelect.value });
+            syncPickerLabel("setting-model", "setting-model-label");
+        });
     }
 
     const refToggle = el("setting-ref");
