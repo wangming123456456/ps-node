@@ -99,7 +99,7 @@ UXP 第三方插件没有签名安装包，走「开发者模式 + 手动放目�
 方式 A：公网（推荐，别的机器直接用）
 
 ```
-https://cdn.jsdelivr.net/gh/wangming123456456/ps-node@v0.1.10/dist/ps.js
+https://cdn.jsdelivr.net/gh/wangming123456456/ps-node@v0.1.11/dist/ps.js
 ```
 
 方式 B：本地静态服务（改了源码后用这个）
