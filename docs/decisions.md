@@ -7,11 +7,11 @@
 | 编号 | 决策 | 理由 | 代价 |
 |---|---|---|---|
 | D1 | 画布侧做插件，PS 侧做 **UXP 插件** | 面板可以放在 PS 里，人在 PS 精修时不用切回画布；图层级能力（batchPlay）后续可扩展 | UXP 需要 Developer Tool 开发、分发需签名 |
-| D2 | 中转做进**宿主 Electron 主进程** | 用户不用单独启动进程，体验上就是「两个插件联通」 | 要改宿主仓库；纯浏览器开发态没有中继 |
+| D2 | 中转交给本地 **canvas-agent** 托管（进程复用 `electron/ps-relay.cjs`） | 用户不用单独启动进程，画布打开时自动拉起并注入地址/token | 要改宿主仓库；agent 没跑时插件连不上 |
 | D3 | 中转用**零依赖 HTTP 长轮询**（`node:http`） | 宿主打包白名单只包含 `electron/` 与 `web/dist/`，加 `ws` 依赖需要改打包配置；长轮询两端都能用 fetch 实现，延迟毫秒级 | 不是真 WebSocket；超长连接需要自己保活 |
 | D4 | 画布插件按**第三方插件（填 URL）**分发 | jsDelivr 直接引用 tag 产物，升级只要改 tag | 仓库必须公开 |
 | D5 | 生成走宿主的 `ctx.ai`，ComfyUI **不参与 v1** | 少一个常驻进程、少约 300 行工作流代码；宿主已管好模型和密钥 | 想用本地工作流（LoRA/ControlNet）要等后续版本 |
-| D6 | 插件清单、token 通过宿主注入的 `window.__RUNTIME_CONFIG__.psRelay` 下发 | 宿主已有 runtime config 机制，不需要额外 IPC | 纯浏览器开发时需要手动填地址/token |
+| D6 | 中继地址与 token 只通过 `window.__RUNTIME_CONFIG__.psRelay` 下发，插件不提供手填入口 | 宿主已有 runtime config 机制，不需要额外 IPC；token 轮换不用改插件 | 插件必须跑在会注入配置的画布页面里 |
 | D7 | 只保留固定原子命令（`docs` / `push` / `pull` / `selection`），不提供任意脚本执行端点 | 中继等价于本地操作 PS 的能力，且中继对本地网页开放 | 扩展能力要改代码而不是发任意脚本 |
 | D8 | 安全默认值：只绑 `127.0.0.1`、token 必填、画布侧校验 Origin | 中继可以驱动 PS，风险面必须收敛 | 多一次复制 token 的手工步骤 |
 | D9 | 画布 **PS 节点只做通道**（取回 / 推送 / 文档 / 中继），生成和改图交给画布现有图片节点；PS 面板的「AI 生成」保留（走反向通道） | 不重复造生成面板，画布无论加什么编辑能力 PS 节点都自动受益；模型/提示词/参数全由宿主面板负责 | 想"在 PS 节点上直接出图"时要多接一个图片节点 |
@@ -61,15 +61,16 @@
 
 ## 宿主侧（aigc-studio）
 
-- 新增 `electron/ps-relay.cjs`：中继实现，可被 `main.cjs` 启动，也可 `node electron/ps-relay.cjs --port 23310` 独立运行（纯浏览器开发态兜底）。
-- `main.cjs`：`app.whenReady` 后启动中继；`app://` 协议对 `/config.js` 注入：
+- `electron/ps-relay.cjs`：中继实现本体（零依赖）；由 canvas-agent 拉起，agent 退出时一并收掉。
+- `canvas-agent/src/ps-relay.ts`：提供 `GET /ps-relay`、`POST /ps-relay/start|stop`，端口固定 23310。
+- 画布页面启动时调 `ensurePsRelay()`，把 `{ url, token }` 写进 `window.__RUNTIME_CONFIG__.psRelay`，插件只读这份配置：
 
 ```js
 window.__RUNTIME_CONFIG__ = window.__RUNTIME_CONFIG__ || {};
-window.__RUNTIME_CONFIG__.psRelay = { url: "http://localhost:23310", token: "..." };
+window.__RUNTIME_CONFIG__.psRelay = { url: "http://127.0.0.1:23310", token: "..." };
 ```
 
-- token 首次启动生成 32 位 hex，存 `userData`，画布面板可见，PS 面板粘贴一次。
+- token 是 agent 配置里的 `psRelayToken`（首次生成 32 位 hex），只用于画布侧端点鉴权；PS 侧无 Origin，免 token。
 
 ## 待验证清单（真机）
 

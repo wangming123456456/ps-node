@@ -300,6 +300,17 @@
                 cursor: pointer;
             }
 
+            /* 结果预览的整块点击层：UXP 下 img 的 click 不可靠，用一层透明 div 接住点击 */
+            .preview__hit {
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                z-index: 3;
+                cursor: pointer;
+            }
+
             .spacer {
                 flex: 1 1 auto;
             }
@@ -752,6 +763,7 @@
 
             <div class="preview m12" id="preview-box">
                 <img id="shot-image" class="preview__img" alt="" hidden /><img id="preview" class="preview__img preview__img--result" alt="" hidden /><span id="preview-empty" class="preview__empty">没有打开的文档</span>
+                <div id="preview-hit" class="preview__hit" hidden></div>
                 <div id="result-overlay" class="preview__overlay" hidden><span class="preview__label">生成结果</span><span class="spacer"></span><button id="gen-apply" type="button" class="btn btn--primary" disabled>添加到图层</button><button id="result-close" type="button" class="btn">返回画面</button></div>
             </div>
 

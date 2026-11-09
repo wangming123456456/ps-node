@@ -1,7 +1,8 @@
-// 节点设置浮层：目标文档、输出尺寸、中继地址都收在这里，节点下方不再挂面板。
+// 节点设置浮层：目标文档、输出尺寸、中继状态都收在这里，节点下方不再挂面板。
 import type { CanvasNodeContext, CanvasTheme } from "@infinite-canvas/plugin-sdk";
 
 import { checkHealth, loadSettings, refreshDocs, saveSettings, type PsDoc, type PsSettings } from "./actions";
+import { relayEndpoint } from "./relay";
 
 const MAX_EDGE_OPTIONS = [1024, 1536, 2048, 0];
 
@@ -78,23 +79,16 @@ export function openSettingsOverlay(ctx: CanvasNodeContext): void {
 
     const hint = node("div", "ps-modal__hint", "有选区时：取回=只取选区，推送=贴回选区；没选区时取整幅图。");
 
-    const relay = document.createElement("details");
-    relay.className = "ps-details";
-    const relaySummary = document.createElement("summary");
-    relaySummary.textContent = "中继地址";
-    const relayBody = node("div", "ps-details__body");
-    const urlInput = node("input", "ps-input") as HTMLInputElement;
-    urlInput.placeholder = "http://localhost:23310";
-    const tokenInput = node("input", "ps-input") as HTMLInputElement;
-    tokenInput.placeholder = "token（宿主注入，可留空）";
-    const relayActions = node("div", "ps-modal__row");
+    // 中继地址/token 由宿主注入（canvas-agent 托管），这里只读展示 + 测试，不提供手填。
+    const relayLabel = node("div", "ps-modal__label", "中继");
+    const relayRow = node("div", "ps-modal__row ps-modal__relay");
+    const relayText = node("span", "ps-modal__relay-text", "");
     const testButton = node("button", "ps-textbtn", "测试连接") as HTMLButtonElement;
     testButton.type = "button";
-    relayActions.append(node("span", "ps-spacer"), testButton);
-    relayBody.append(urlInput, tokenInput, relayActions);
-    relay.append(relaySummary, relayBody);
+    relayRow.append(relayText, node("span", "ps-spacer"), testButton);
+    const relayHint = node("div", "ps-modal__hint", "地址和 token 由画布宿主注入，不用手填；显示「未注入」说明 canvas-agent 没在运行。");
 
-    body.append(docLabel, docSelect, sizeLabel, sizeGroup, hint, relay);
+    body.append(docLabel, docSelect, sizeLabel, sizeGroup, hint, relayLabel, relayRow, relayHint);
     card.append(head, body);
     root.append(backdrop, card);
     document.body.appendChild(root);
@@ -115,12 +109,12 @@ export function openSettingsOverlay(ctx: CanvasNodeContext): void {
 
     const applySettings = (next: PsSettings) => {
         settings = next;
-        urlInput.value = next.baseUrl;
-        tokenInput.value = next.token;
         sizeButtons.forEach((button) => {
             const pressed = Number(button.dataset.value) === next.maxEdge;
             button.setAttribute("aria-pressed", pressed ? "true" : "false");
         });
+        const endpoint = relayEndpoint();
+        relayText.textContent = endpoint.token ? endpoint.baseUrl : "未注入（canvas-agent 未运行）";
     };
 
     const update = async (patch: Partial<PsSettings>) => {
@@ -156,7 +150,7 @@ export function openSettingsOverlay(ctx: CanvasNodeContext): void {
         dot.className = "ps-dot";
         statusText.textContent = "刷新中…";
         try {
-            const docs = await refreshDocs(settings);
+            const docs = await refreshDocs();
             fillDocs(docs, settings.doc);
             dot.className = "ps-dot ps-dot--ok";
             statusText.textContent = "PS 在线";
@@ -172,14 +166,13 @@ export function openSettingsOverlay(ctx: CanvasNodeContext): void {
             if (settings) void update({ maxEdge: Number(button.dataset.value) });
         });
     });
-    urlInput.addEventListener("blur", () => {
-        if (settings && urlInput.value.trim() !== settings.baseUrl) void update({ baseUrl: urlInput.value.trim() });
-    });
-    tokenInput.addEventListener("blur", () => {
-        if (settings && tokenInput.value !== settings.token) void update({ token: tokenInput.value });
-    });
     testButton.addEventListener("click", async () => {
-        const health = await checkHealth(await loadSettings(ctx));
+        if (!relayEndpoint().token) {
+            dot.className = "ps-dot ps-dot--error";
+            statusText.textContent = "中继未注入：先让 canvas-agent 跑起来";
+            return;
+        }
+        const health = await checkHealth();
         dot.className = health?.ok ? "ps-dot ps-dot--ok" : "ps-dot ps-dot--error";
         statusText.textContent = health?.ok ? (health.photoshop?.connected ? "PS 在线" : "中继在线，PS 未连接") : "中继未连接";
     });

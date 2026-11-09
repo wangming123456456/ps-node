@@ -2,7 +2,7 @@ import type { CSSProperties } from "react";
 import { useEffect, useRef, useState } from "@infinite-canvas/plugin-sdk";
 import type { CanvasNodeContentProps, CanvasNodeContext, CanvasNodeToolbarItem, CanvasTheme } from "@infinite-canvas/plugin-sdk";
 
-import { loadSettings, pullFromPs, pushToPs, readError, readStatus, type PsSettings } from "./actions";
+import { loadSettings, previewToPs, pullFromPs, pushToPs, readError, readStatus, type PsSettings } from "./actions";
 import { startPsRequestWorker } from "./ps-requests";
 import { openSettingsOverlay } from "./settings";
 
@@ -109,6 +109,25 @@ export function NodeContent({ ctx }: CanvasNodeContentProps) {
     const ctxRef = useRef<CanvasNodeContext | null>(ctx);
     ctxRef.current = ctx;
     useEffect(() => startPsRequestWorker(() => ctxRef.current), []);
+
+    // 画布里刚生成的新图（metadata.generatedAt 变新）送到 PS 面板的「结果」预览，用户点预览才落图层。
+    const autoPreviewedAt = useRef(Number(ctx.node.metadata?.generatedAt || 0));
+    useEffect(() => {
+        const generatedAt = Number(ctx.node.metadata?.generatedAt || 0);
+        const generated = typeof ctx.node.metadata?.content === "string" ? ctx.node.metadata.content : "";
+        if (!generatedAt || generatedAt === autoPreviewedAt.current || !generated) return;
+        autoPreviewedAt.current = generatedAt;
+        void (async () => {
+            try {
+                // 不先探健康状态：中继的 photoshop.connected 是按 15s 窗口算的，而 PS 面板 25s 才轮询一次，
+                // 中间有一段会误报未连接，直接把预览发过去、短超时就够了。
+                await previewToPs(ctx, generated);
+                ctx.updateMetadata({ psPreviewAt: Date.now(), psPreviewError: "" });
+            } catch (error) {
+                ctx.updateMetadata({ psPreviewError: error instanceof Error ? error.message : String(error) });
+            }
+        })();
+    }, [ctx.node.metadata?.generatedAt, ctx.node.metadata?.content]);
 
     return (
         <div className="ps-root ps-node" style={themeVars(ctx.theme)}>

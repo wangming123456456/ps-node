@@ -377,21 +377,7 @@
     font-size: 12px;
 }
 
-.ps-modal .ps-input {
-    height: 30px;
-    width: 100%;
-    box-sizing: border-box;
-    padding: 0 9px;
-    border: 1px solid var(--ps-stroke);
-    border-radius: 8px;
-    background: transparent;
-    color: var(--ps-text);
-    font: inherit;
-    font-size: 12px;
-}
-
-.ps-modal .ps-select:focus,
-.ps-modal .ps-input:focus {
+.ps-modal .ps-select:focus {
     outline: none;
     border-color: var(--ps-muted);
 }
@@ -448,91 +434,13 @@
     color: var(--ps-text);
 }
 
-.ps-modal .ps-details > summary {
-    list-style: none;
-    cursor: pointer;
-    color: var(--ps-muted);
-    font-size: 11px;
-    padding: 2px 0;
-    user-select: none;
-}
-
-.ps-modal .ps-details > summary::-webkit-details-marker {
-    display: none;
-}
-
-.ps-modal .ps-details > summary::before {
-    content: "›";
-    display: inline-block;
-    width: 12px;
-}
-
-.ps-modal .ps-details[open] > summary::before {
-    transform: rotate(90deg);
-}
-
-.ps-modal .ps-details__body {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding: 8px 0 2px;
-}
-
-
-.ps-details {
-    border-radius: 8px;
-}
-
-.ps-details > summary {
-    list-style: none;
-    cursor: pointer;
-    color: var(--ps-muted);
-    font-size: 11px;
-    padding: 2px 0;
-    user-select: none;
-}
-
-.ps-details > summary::-webkit-details-marker {
-    display: none;
-}
-
-.ps-details > summary::before {
-    content: "›";
-    display: inline-block;
-    width: 12px;
-    transition: transform 0.15s ease;
-}
-
-.ps-details[open] > summary {
-    color: var(--ps-text);
-}
-
-.ps-details[open] > summary::before {
-    transform: rotate(90deg);
-}
-
-.ps-details__body {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding: 8px 0 2px;
-}
-
-.ps-input {
-    height: 30px;
-    box-sizing: border-box;
-    width: 100%;
+.ps-modal__relay-text {
     min-width: 0;
-    padding: 0 10px;
-    border: 1px solid var(--ps-stroke);
-    border-radius: 8px;
-    background: transparent;
-    color: var(--ps-text);
-    font: inherit;
-    font-size: 12px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--ps-muted);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
 }
 
-.ps-input:focus {
-    outline: none;
-    border-color: var(--ps-muted);
-}

@@ -17,7 +17,7 @@ export const DEFAULT_BASE_URL = "http://localhost:23310";
 
 const POLL_TIMEOUT_MS = 25_000;
 
-/** 宿主（Electron）注入的中继地址与 token；纯浏览器开发时为空。 */
+/** 宿主（canvas-agent）注入的中继地址与 token；没注入就是没连上。 */
 export function readInjectedEndpoint(): { baseUrl?: string; token?: string } {
     const injected = (typeof window === "undefined" ? undefined : (window as { __RUNTIME_CONFIG__?: RuntimeConfig }).__RUNTIME_CONFIG__)?.psRelay;
     return { baseUrl: injected?.url, token: injected?.token };
@@ -28,8 +28,20 @@ export function normalizeBaseUrl(url: string | undefined): string {
     return trimmed || DEFAULT_BASE_URL;
 }
 
+export const NO_RELAY_MESSAGE = "PS 中继未就绪：确认画布是从宿主打开的、canvas-agent 在运行，然后刷新页面";
+
+/**
+ * 中继地址与 token 一律跟随宿主注入，插件不再有手填入口。
+ * 旧版本存过的 token 不再参与，避免中继换了 token 后一直 401。
+ */
+export function relayEndpoint(): RelayEndpoint {
+    const injected = readInjectedEndpoint();
+    return { baseUrl: normalizeBaseUrl(injected.baseUrl), token: injected.token ?? "" };
+}
+
 export async function health(endpoint: RelayEndpoint): Promise<RelayHealth> {
-    const response = await fetch(`${endpoint.baseUrl}/api/health`, { cache: "no-store", headers: { "x-relay-token": endpoint.token } });
+    if (!endpoint.token) throw new Error(NO_RELAY_MESSAGE);
+    const response = await fetch(`${endpoint.baseUrl}/api/health`, { cache: "no-store", headers: { "x-relay-token": endpoint.token }, signal: AbortSignal.timeout(3000) });
     if (!response.ok) throw new Error(`中继未响应（${response.status}）`);
     return (await response.json()) as RelayHealth;
 }
@@ -42,6 +54,7 @@ async function readJson<T>(response: Response, what: string): Promise<T> {
 
 /** 投递一条命令给 PS，并长轮询等待 PS 回填结果。 */
 export async function runCommand<T>(endpoint: RelayEndpoint, command: string, payload: unknown, timeoutMs = 120_000): Promise<T> {
+    if (!endpoint.token) throw new Error(NO_RELAY_MESSAGE);
     const response = await fetch(`${endpoint.baseUrl}/api/command`, {
         method: "POST",
         headers: { "content-type": "application/json", "x-relay-token": endpoint.token },

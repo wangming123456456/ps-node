@@ -728,6 +728,24 @@ async function handle(command, payload) {
             }
             return { ok: true, data: await exportMergedImage(payload || {}) };
         }
+        if (command === "preview") {
+            const image = payload && payload.image;
+            if (!image) return { ok: false, error: "缺少图片数据" };
+            lastRender = image;
+            lastRenderSelection = payload && payload.selection && payload.selection.left !== undefined ? payload.selection : null;
+            const applyButton = el("gen-apply");
+            if (applyButton) {
+                applyButton.textContent = lastRenderSelection ? "贴回选区" : "添加到图层";
+                applyButton.disabled = false;
+            }
+            // 画布生成了新图：切到「结果」并显示出来，等用户点画面才落成图层
+            saveUxSettings({ showReference: false });
+            syncPreviewSwitch();
+            showResultPreview();
+            setGenState(lastRenderSelection ? "画布新图（选区）：点画面贴回" : "画布新图：点画面添加到图层");
+            log("收到画布生成结果，已显示在「结果」预览");
+            return { ok: true, data: { shown: true } };
+        }
         return { ok: false, error: `未知命令：${command}` };
     } catch (error) {
         return { ok: false, error: messageOf(error) };
@@ -772,8 +790,12 @@ function previewEmpty(text) {
     const image = el("shot-image");
     const result = el("preview");
     const empty = el("preview-empty");
+    const overlay = el("result-overlay");
+    const hit = el("preview-hit");
     if (image) image.hidden = true;
     if (result) result.hidden = true;
+    if (overlay) overlay.hidden = true;
+    if (hit) hit.hidden = true;
     if (empty) {
         empty.hidden = false;
         empty.textContent = text;
@@ -785,9 +807,13 @@ async function showReferencePreview() {
     const image = el("shot-image");
     const result = el("preview");
     const empty = el("preview-empty");
+    const overlay = el("result-overlay");
+    const hit = el("preview-hit");
     if (!image || !empty) return;
     const box = el("preview-box");
     if (box) box.classList.remove("preview--clickable");
+    if (overlay) overlay.hidden = true;
+    if (hit) hit.hidden = true;
     try {
         const doc = app.activeDocument;
         if (!doc) {
@@ -811,15 +837,22 @@ function showResultPreview() {
     const result = el("preview");
     const empty = el("preview-empty");
     const box = el("preview-box");
+    const overlay = el("result-overlay");
+    const hit = el("preview-hit");
     if (!result) return;
     if (lastRender) {
         result.src = lastRender;
         result.hidden = false;
         if (image) image.hidden = true;
         if (empty) empty.hidden = true;
+        // 不要按钮条：整块预览套一层透明点击层，点哪里都落层
+        if (overlay) overlay.hidden = true;
+        if (hit) hit.hidden = false;
         if (box) box.classList.add("preview--clickable");
     } else {
         if (box) box.classList.remove("preview--clickable");
+        if (overlay) overlay.hidden = true;
+        if (hit) hit.hidden = true;
         previewEmpty("还没有生成结果：先点渲染 ▶");
     }
 }
@@ -1000,9 +1033,13 @@ async function renderImage() {
 }
 
 async function applyRender() {
-    if (!lastRender || genBusy) return;
+    if (!lastRender || genBusy) {
+        log(`落层未执行：${genBusy ? "还有生成任务在跑" : "没有结果图"}`);
+        return;
+    }
     setGenBusy(true);
     setGenState("正在添加到图层…");
+    log("开始把结果落成 PS 图层…");
     try {
         const time = new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false });
         if (lastRenderSelection) {
@@ -1120,21 +1157,27 @@ function bootMain() {
             saveUxSettings({ showReference: !uxSettings.showReference });
             updatePreviewMode();
         });
-    // 点预览区：显示结果时把结果落成 PS 图层
-    const previewBox = el("preview-box");
-    if (previewBox)
-        previewBox.addEventListener("click", () => {
-            if (genBusy) return;
-            if (uxSettings.showReference) {
-                if (lastRender) setGenState("当前是参考画面：切到「结果」后点击画面落层");
-                return;
-            }
-            if (!lastRender) {
-                setGenState("还没有生成结果：先点渲染 ▶", true);
-                return;
-            }
-            void applyRender();
-        });
+    // 点预览区：显示结果时把结果落成 PS 图层（UXP 下 img 的 click 不一定冒泡到父级，所以三个都挂）
+    const handlePreviewClick = () => {
+        log("点击结果预览：准备落层");
+        if (genBusy) {
+            log("落层被忽略：还有生成任务在跑");
+            return;
+        }
+        if (uxSettings.showReference) {
+            if (lastRender) setGenState("当前是参考画面：切到「结果」后点击画面落层");
+            return;
+        }
+        if (!lastRender) {
+            setGenState("还没有生成结果：先点渲染 ▶", true);
+            return;
+        }
+        void applyRender();
+    };
+    for (const id of ["preview-box", "preview-hit", "preview", "shot-image"]) {
+        const node = el(id);
+        if (node) node.addEventListener("click", handlePreviewClick);
+    }
     syncPreviewSwitch();
     updatePreviewMode();
 

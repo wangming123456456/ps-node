@@ -4,7 +4,7 @@
 
 - 画布侧：`canvas-plugin/`（第三方画布插件，填 URL 安装）
 - PS 侧：`ps-uxp/`（Photoshop UXP 插件，开发者模式加载）
-- 中继：`aigc-studio/electron/ps-relay.cjs`（宿主 Electron 主进程内置，零依赖 HTTP 长轮询）
+- 中继：由 `aigc-studio` 的 canvas-agent 托管（复用 `electron/ps-relay.cjs`，零依赖 HTTP 长轮询）
 
 ```
 画布插件（PS 节点）  ⇄  中继 http://127.0.0.1:23310  ⇄  Photoshop UXP 面板
@@ -19,7 +19,7 @@
 ```
 ps-node/
 ├── canvas-plugin/          # 画布插件源码（TypeScript + esbuild）
-│   ├── src/                # index.tsx / ui.tsx / actions.ts / relay.ts / ps-requests.ts
+│   ├── src/                # index.tsx / ui.tsx / settings.ts / actions.ts / node-actions.ts / relay.ts / ps-requests.ts
 │   └── dist/ps.js          # 构建产物，也是画布安装用的插件文件
 ├── ps-uxp/                 # Photoshop UXP 插件（原生 JS，无构建）
 │   ├── manifest.json
@@ -37,8 +37,8 @@ ps-node/
 | 依赖 | 说明 |
 |---|---|
 | Windows + Photoshop 2024（25.0+） | 低版本 UXP API 不全，未验证 |
-| Node.js 20+ | 构建画布插件、跑中继 |
-| 画布宿主 `aigc-studio` | **需要 ps-relay 分支**：`feat/image-edit`（含 `electron/ps-relay.cjs`） |
+| Node.js 20+ | 构建画布插件 |
+| 画布宿主 `aigc-studio` | **需要 `feat/image-edit` 分支**（含 canvas-agent 托管的中继与 `nodeActions`） |
 | 画布 AI Key | 生图/渲染需要，在画布「配置」里填 |
 
 ---
@@ -53,11 +53,9 @@ npm install
 npm run dev          # 浏览器开发态，默认 http://localhost:3000
 ```
 
-宿主启动时会自动在中继 `127.0.0.1:23310` 起服务，并把 `{ url, token }` 注入页面 `window.__RUNTIME_CONFIG__.psRelay`。
+画布打开时 canvas-agent 会自动拉起中继（`127.0.0.1:23310`），并把 `{ url, token }` 注入页面 `window.__RUNTIME_CONFIG__.psRelay`；插件只读这份注入，不再有手填地址/token 的入口。
 
-> 纯浏览器开发态如果没跑 Electron 宿主，也可以单独起中继：
-> `node electron/ps-relay.cjs --port 23310`
-> 这样 token 为空（仅本机调试用）。
+> 中继由 canvas-agent 托管，不需要单独启动；agent 没跑时 PS 节点设置里的「中继」会显示「未注入」。
 
 ---
 
@@ -126,13 +124,13 @@ node -e "const http=require('http'),fs=require('fs'),path=require('path');http.c
 
 ### 画布侧 PS 节点
 
-节点下方不再挂面板；选中文档后点悬浮工具栏的「设置」（或双击节点）打开设置浮层：
+节点下方不再挂面板；选中文档后点悬浮工具栏的「设置」打开设置浮层：
 
 | 设置项 | 作用 |
 |---|---|
 | 目标文档 | 推送到哪个 PS 文档；默认「跟随当前文档」 |
 | 输出尺寸 | 取回时的最长边（1024 / 1536 / 2048 / 原图） |
-| 中继地址 | 修改中继 url/token 并测试连接 |
+| 中继 | 只读显示宿主注入的地址，可测试连接；不提供手填 |
 
 ### 任意图片节点右键
 
@@ -151,7 +149,9 @@ node -e "const http=require('http'),fs=require('fs'),path=require('path');http.c
 |---|---|
 | 推送 | 把上游生成图（没有则用节点自身内容）贴进 PS 新图层；有选区时贴回选区 |
 | 取回 | 把 PS 当前文档画面（有选区则取选区）拉回节点内容 |
-| 设置 | 目标文档 / 输出尺寸 / 中继地址 / 刷新文档（工具栏齿轮或双击节点） |
+| 设置 | 目标文档 / 输出尺寸 / 中继状态 / 刷新文档（工具栏齿轮） |
+
+在节点下方输入提示词生成时，画布会把该节点自己的画面当参考、结果写回节点；**生成完结果会送到 PS 面板的「结果」预览**（PS 面板没开时跳过，仍可手动点「推送」），在 PS 里点一下预览画面才落成新图层。
 
 ### PS 面板（单面板：绘图视图 + 设置视图）
 
@@ -252,8 +252,11 @@ PS 手动修 → 切到画布：PS 节点点「取回」，或图片节点右键
 cd canvas-plugin
 npm install
 npm run typecheck
-npm run build        # 产物 dist/ps.js，并同步一份到宿主 web/public/plugins/ps.js
+npm run build        # 产物 dist/ps.js
+node ..\scripts\sync-canvas-plugin-cache.mjs   # 已装过插件时，把新产物同步进画布市场的缓存
 ```
+
+> 画布只读插件市场里的缓存源码，光更新 `dist/ps.js` 不会生效：构建后在仓库根目录跑一次 `node scripts\sync-canvas-plugin-cache.mjs`（读 agent 配置里的 `canvasRoot`，自动备份），再刷新画布页。
 
 PS 插件是原生 JS，没有构建步骤。改完 `ps-uxp/` 后：
 
@@ -263,7 +266,7 @@ PS 插件是原生 JS，没有构建步骤。改完 `ps-uxp/` 后：
 
 **必须重启 Photoshop**（UXP 只在启动/首次打开面板时加载插件脚本）。
 
-中继单独调试：
+中继单独调试（只调 PS 侧协议，画布插件不会读这个地址，联调仍要 agent 注入）：
 
 ```powershell
 node electron/ps-relay.cjs --port 23310 --token devtoken
@@ -286,11 +289,12 @@ node electron/ps-relay.cjs --port 23310 --token devtoken
 | 现象 | 处理 |
 |---|---|
 | PS 面板「未连接」 | 确认宿主/中继在跑（`curl http://127.0.0.1:23310/api/health`）；面板首次要手动打开；配置页改地址后点「应用并重连」 |
-| 画布节点「未连接」 | 画布插件要在宿主里跑（有 `window.__RUNTIME_CONFIG__.psRelay`），纯浏览器调试时手动填中继地址 |
+| 画布节点「未连接」 | 确认 canvas-agent 在跑（画布打开时会自动拉起中继并注入 `window.__RUNTIME_CONFIG__.psRelay`），然后刷新页面；旧版本手填过的 token 不再读取 |
 | 推送报「文档不存在」 | 目标文档被关/改名；会自动退回当前文档，或重新选目标文档 |
 | 渲染报「AI 配置未就绪」 | 画布配 AI Key / 默认模型 |
 | 点发送 PS 闪屏 | 旧版本用复制文档导出；v0.1.9 起走 Imaging API，不再闪。若仍闪，看 PS 面板「配置→日志」是否有「回退副本导出」 |
 | 面板按钮点不动 | 确认是最新部署（重启 PS）；看 UXP 日志 `%APPDATA%\Adobe\Adobe Photoshop 2024\Logs\UXPLogs*` |
+| 重启 PS 后「增效工具 → PS 节点」不见了 | UXP 的用户插件表 `%APPDATA%\Adobe\UXP\PluginsInfo\v1\PS.json` 一旦存在，PS 就不扫描 External 目录；PS 会把它写成空表 `{"plugins":[]}`。删掉它（或换成同名目录）再重启 PS；`scripts/install-uxp.ps1` 会自动处理这一步。 |
 | Photoshop 打不开/进程残留 | 任务管理器结束 `Photoshop.exe` 再启动；系统内存紧张时先关掉多余文档 |
 | 端口 23310 被占 | 中继会自动 +1 试绑；也可改宿主里的默认端口常量 |
 

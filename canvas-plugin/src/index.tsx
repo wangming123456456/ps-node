@@ -3,7 +3,6 @@ import { definePlugin } from "@infinite-canvas/plugin-sdk";
 import css from "./styles.css";
 import { NodeContent, nodeToolbar } from "./ui";
 import { nodeActions } from "./node-actions";
-import { openSettingsOverlay } from "./settings";
 
 export default definePlugin({
     id: "ps",
@@ -24,10 +23,6 @@ export default definePlugin({
             resource: (node) => {
                 const url = typeof node.metadata?.content === "string" ? node.metadata.content : "";
                 return url ? { kind: "image", url } : null;
-            },
-            onDoubleClick: (ctx) => {
-                openSettingsOverlay(ctx);
-                return true;
             },
             toolbar: nodeToolbar,
             Content: NodeContent,

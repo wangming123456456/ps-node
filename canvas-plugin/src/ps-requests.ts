@@ -2,8 +2,8 @@
 // 协议见仓库根 docs/decisions.md。
 import type { CanvasNodeContext } from "@infinite-canvas/plugin-sdk";
 
-import { loadSettings, readPsDoc } from "./actions";
-import { completePsJob, nextPsJob, type PsJob } from "./relay";
+import { readPsDoc } from "./actions";
+import { completePsJob, nextPsJob, relayEndpoint, type PsJob } from "./relay";
 
 type GenPayload = {
     prompt?: string;
@@ -97,8 +97,12 @@ export function startPsRequestWorker(getCtx: () => CanvasNodeContext | null): ()
                     await sleep(1000);
                     continue;
                 }
-                const settings = await loadSettings(ctx);
-                const endpoint = { baseUrl: settings.baseUrl, token: settings.token };
+                const endpoint = relayEndpoint();
+                // 中继地址/token 等宿主注入；没注入时静默等，别刷 401。
+                if (!endpoint.token) {
+                    await sleep(2000);
+                    continue;
+                }
                 let job: PsJob | null = null;
                 try {
                     job = await nextPsJob(endpoint, controller.signal);
