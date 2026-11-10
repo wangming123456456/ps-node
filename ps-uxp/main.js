@@ -1202,6 +1202,9 @@ function bootMain() {
     if (genApplyButton) genApplyButton.addEventListener("click", () => void applyRender());
     const sendCanvasButton = el("send-canvas");
     if (sendCanvasButton) sendCanvasButton.addEventListener("click", () => void sendCurrentToCanvas());
+    // 画布送来的图解不出来时别留一块黑框，直接说明原因
+    const previewImage = el("preview");
+    if (previewImage) previewImage.addEventListener("error", () => previewEmpty("这张图在 PS 里解不出来（可能是格式不支持）"));
     const resultClose = el("result-close");
     if (resultClose)
         resultClose.addEventListener("click", () => {

@@ -25,11 +25,7 @@
 
 ## 发布
 
-- **tag 就是仓库的发布号**（`v0.1.26` 这类），画布插件的 `version` 必须和 tag 同号；`ps-uxp/manifest.json` 是 UXP 面板自己的版本，只在面板本身有改动的那次发布跟到本次发布号，没改就保持原号（不要把没动过的面板号硬升，PS 里显示的版本会误导）。
-- 发版清单，一次做完再推：
-  1. 升 `canvas-plugin/package.json` 和 `src/index.tsx` 的 `version`；
-  2. `cd canvas-plugin && npm run build`，产物 `dist/ps.js` 一起提交；
-  3. `README.md` 与 `docs/安装说明.md` 里的 jsDelivr 地址换成新 tag，并把「装完应该看到」示例里的版本号改掉；
-  4. 提交、打 tag、**分支和 tag 都要 push**（只推分支的话 jsDelivr 拿不到这个版本）；
-  5. 本机再跑一次同步，让画布插件缓存也更新。
-- 安装地址是**钉 tag** 的：老用户升级要把新 URL 重新装一遍（`从来源更新` 只会重读同一条旧 URL）。用 `@main` 的地址会命中 CDN 缓存，别图省事。
+- **主产物是 PS 面板（`ps-uxp/`）**：改完重跑 `scripts/install-uxp.ps1`，然后在 PS 里关掉面板再打开（或重启 PS）——脚本只在面板打开时执行。面板版本号在 `ps-uxp/manifest.json`，tag 与它同号。
+- **画布侧能力跟着画布版本走**（`aigc-studio` 分支 `feat/image-edit`），本仓库不再为画布侧发版。选中即预览、落层、发送画布、配置页都在画布仓库里。
+- `canvas-plugin/` 只剩**退场渲染器**（约 2KB，只给还没迁移的旧 `ps:layer` 节点占位用）：只有旧画布兼容出问题才需要动它，平时不碰、也不必发版。真要发就 build → 打 tag → 同步缓存，老规矩。
+- 安装地址若需要（仅旧画布）：`https://cdn.jsdelivr.net/gh/wangming123456456/ps-node@<tag>/dist/ps.js`，钉 tag，别用 `@main`（CDN 缓存）。
