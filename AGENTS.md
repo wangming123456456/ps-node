@@ -25,5 +25,11 @@
 
 ## 发布
 
-- 发版：升 `canvas-plugin/package.json`、`src/index.tsx` 里的 `version`，重新构建并提交 `dist/ps.js`，然后打 tag。
-- 安装说明与 README 里的 jsDelivr 地址是**带 tag** 的，发版时要一起改；用 `@main` 的地址会命中 CDN 缓存，别图省事。
+- **tag 就是仓库的发布号**（`v0.1.26` 这类），画布插件的 `version` 必须和 tag 同号；`ps-uxp/manifest.json` 是 UXP 面板自己的版本，只在面板本身有改动的那次发布跟到本次发布号，没改就保持原号（不要把没动过的面板号硬升，PS 里显示的版本会误导）。
+- 发版清单，一次做完再推：
+  1. 升 `canvas-plugin/package.json` 和 `src/index.tsx` 的 `version`；
+  2. `cd canvas-plugin && npm run build`，产物 `dist/ps.js` 一起提交；
+  3. `README.md` 与 `docs/安装说明.md` 里的 jsDelivr 地址换成新 tag，并把「装完应该看到」示例里的版本号改掉；
+  4. 提交、打 tag、**分支和 tag 都要 push**（只推分支的话 jsDelivr 拿不到这个版本）；
+  5. 本机再跑一次同步，让画布插件缓存也更新。
+- 安装地址是**钉 tag** 的：老用户升级要把新 URL 重新装一遍（`从来源更新` 只会重读同一条旧 URL）。用 `@main` 的地址会命中 CDN 缓存，别图省事。

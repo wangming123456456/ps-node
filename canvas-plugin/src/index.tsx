@@ -7,7 +7,7 @@ import { nodeActions } from "./node-actions";
 export default definePlugin({
     id: "ps",
     name: "PS 节点",
-    version: "0.1.13",
+    version: "0.1.26",
     description: "画布 ↔ Photoshop 通道：任意图片节点右键即可推送到 PS / 从 PS 取回",
     css,
     nodeActions,

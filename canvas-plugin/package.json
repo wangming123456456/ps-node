@@ -1,6 +1,6 @@
 {
     "name": "canvas-plugin-ps",
-    "version": "0.1.0",
+    "version": "0.1.26",
     "private": true,
     "type": "module",
     "description": "PS 节点：把画布的图推进 Photoshop，改完再取回",
