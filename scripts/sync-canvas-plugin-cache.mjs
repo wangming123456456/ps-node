@@ -1,6 +1,7 @@
 // 把本仓库 dist/ps.js 同步进画布市场的插件缓存（画布只读缓存源码，光改 dist 不会生效）。
 // 用法：node scripts/sync-canvas-plugin-cache.mjs
 // 画布根目录取 ~/.infinite-canvas/canvas-agent.json 的 canvasRoot。
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -34,7 +35,20 @@ if (!entry) {
 }
 
 const bundle = fs.readFileSync(bundleFile, "utf8");
-if (entry.source === bundle) {
+// 缓存里的 version/url 是上次安装时的快照，发版后要跟着 bundle 一起更新：
+// 否则插件市场会显示旧版本号，点「从来源更新」还会按旧 tag 把插件降级。
+const bundleVersion = bundle.match(/version:"([\d.]+)"/)?.[1] ?? "";
+const latestTag = (() => {
+    try {
+        return execFileSync("git", ["describe", "--tags", "--abbrev=0"], { cwd: root, encoding: "utf8" }).trim();
+    } catch {
+        return "";
+    }
+})();
+const nextUrl = latestTag ? entry.url?.replace(/ps-node@[^/]+\//, `ps-node@${latestTag}/`) : entry.url;
+
+const dirty = entry.source !== bundle || (bundleVersion && entry.version !== bundleVersion) || (nextUrl && nextUrl !== entry.url);
+if (!dirty) {
     console.log("插件缓存已是最新，无需更新");
     process.exit(0);
 }
@@ -43,12 +57,15 @@ const backup = `${storeFile}.bak-${Date.now()}`;
 fs.copyFileSync(storeFile, backup);
 
 entry.source = bundle;
+if (bundleVersion) entry.version = bundleVersion;
+if (nextUrl) entry.url = nextUrl;
 entry.installedAt = new Date().toISOString();
 
 const temp = `${storeFile}.tmp`;
 fs.writeFileSync(temp, JSON.stringify(json), "utf8");
 const check = JSON.parse(fs.readFileSync(temp, "utf8"));
-if (!check.state.plugins.some((plugin) => plugin.id === "ps" && plugin.source === bundle)) {
+const written = check.state.plugins.find((plugin) => plugin.id === "ps");
+if (!written || written.source !== bundle || (bundleVersion && written.version !== bundleVersion)) {
     fs.rmSync(temp, { force: true });
     console.error("写回校验失败，插件缓存未改动");
     process.exit(1);
