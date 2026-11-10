@@ -289,6 +289,9 @@ export type CanvasNodeDefinition = {
     // 此时忽略 interactive 标志、始终允许操作,并隐藏移动/交互开关。缺省视为 false。
     forceInteractive?: (node: CanvasNodeData) => boolean;
     keepAspectRatio?: (node: CanvasNodeData) => boolean;
+    // "self" 时画布图片工具（裁剪/标注/消除/调色/重打光…）把结果写回本节点自己，而不是新建子节点；
+    // 缺省 "child"，内置图片节点维持原有的非破坏性行为。
+    editTarget?: "self" | "child";
     resource?: (node: CanvasNodeData) => CanvasNodeResource | null;
     // 渲染
     Content?: ComponentType<CanvasNodeContentProps>;
