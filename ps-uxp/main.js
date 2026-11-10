@@ -24,7 +24,7 @@ const relay = { url: "http://localhost:23310", token: "" };
 let polling = false;
 let relayConnected = false;
 
-const DEFAULT_SETTINGS = { model: "", reference: true, autoApply: false, previewSize: 512, autoRefresh: true, showReference: true };
+const DEFAULT_SETTINGS = { model: "", reference: true, autoApply: false, previewSize: 512, autoRefresh: true, showReference: true, syncSize: 2048 };
 let uxSettings = Object.assign({}, DEFAULT_SETTINGS);
 let pendingAutoApply = false;
 
@@ -634,6 +634,7 @@ async function connect() {
         refreshDocumentInfo();
         void refreshModels();
         void refreshShot();
+        void pullCurrentTrack();
         void startPolling();
     } catch (error) {
         setStatus("error", "连接失败");
@@ -728,6 +729,7 @@ async function handle(command, payload) {
             }
             return { ok: true, data: await exportMergedImage(payload || {}) };
         }
+        if (command === "track") return { ok: true, data: applyTrackPayload(payload) };
         if (command === "preview") {
             const image = payload && payload.image;
             if (!image) return { ok: false, error: "缺少图片数据" };
@@ -749,6 +751,40 @@ async function handle(command, payload) {
         return { ok: false, error: `未知命令：${command}` };
     } catch (error) {
         return { ok: false, error: messageOf(error) };
+    }
+}
+
+/** 把「画布当前选中」应用到预览区：track 命令与面板后开的握手都走这里。 */
+function applyTrackPayload(payload) {
+    const kind = payload && payload.kind;
+    if (kind === "image" && payload.image) {
+        lastRender = payload.image;
+        lastRenderSelection = null;
+        lastTracked = { nodeId: payload.nodeId || "", title: payload.title || "" };
+        saveUxSettings({ showReference: false });
+        syncPreviewSwitch();
+        showResultPreview();
+        const suffix = Number(payload.total) > 1 ? `（第 ${payload.index || 1}/${payload.total} 张）` : "";
+        setGenState(`画布选中：${lastTracked.title || "图片卡片"}${suffix} · 点画面落层`);
+        log(`跟随画布选中：${lastTracked.title || payload.nodeId}`);
+        return { shown: true };
+    }
+    // 视频 / 音频 / 文本卡片：保留上一张画面，只提示，不清空预览区
+    if (kind === "unsupported") {
+        setGenState(`画布选中的是${payload.nodeKind || "这类"}卡片，PS 不支持`, true);
+        return { shown: false };
+    }
+    setGenState("在画布上选一张图片卡片", true);
+    return { shown: false };
+}
+
+/** 面板后开：问一次画布现在选中的是谁，否则要重新点卡片才显示。 */
+async function pullCurrentTrack() {
+    try {
+        const track = await requestCanvas("current", {}, 8000);
+        if (track) applyTrackPayload(track);
+    } catch {
+        // 画布没连上就等下一次 track 推过来
     }
 }
 
@@ -888,6 +924,8 @@ async function refreshShot() {
 
 let lastRender = null;
 let lastRenderSelection = null;
+// 画布当前选中的卡片（track 命令带过来），「发送画布」写回它
+let lastTracked = null;
 let modelsLoaded = false;
 let genBusy = false;
 
@@ -1032,12 +1070,34 @@ async function renderImage() {
     }
 }
 
+/** 「发送画布」：把 PS 当前画面（有选区就取选区）写回画布上选中的那张卡片。 */
+async function sendCurrentToCanvas() {
+    if (!lastTracked || !lastTracked.nodeId) {
+        setGenState("画布上还没有选中的卡片", true);
+        return;
+    }
+    setGenState("正在发送到画布…");
+    try {
+        const bounds = await resolveSelectionBounds();
+        const shot = bounds ? await exportSelectionReference(bounds) : await exportMergedImage({ maxEdge: uxSettings.syncSize || 2048 });
+        const data = await requestCanvas("sync", { image: shot.image, nodeId: lastTracked.nodeId }, 60000);
+        if (data && data.synced) {
+            setGenState(`已发送到画布：${lastTracked.title || "卡片"}`);
+            log(`已发送到画布：${lastTracked.title || lastTracked.nodeId}`);
+        } else {
+            setGenState("发送失败：画布没有回执", true);
+        }
+    } catch (error) {
+        setGenState(`发送失败：${messageOf(error)}`, true);
+        log(`发送画布失败：${messageOf(error)}`);
+    }
+}
+
 async function applyRender() {
     if (!lastRender || genBusy) {
         log(`落层未执行：${genBusy ? "还有生成任务在跑" : "没有结果图"}`);
         return;
-    }
-    setGenBusy(true);
+    }    setGenBusy(true);
     setGenState("正在添加到图层…");
     log("开始把结果落成 PS 图层…");
     try {
@@ -1140,6 +1200,8 @@ function bootMain() {
     if (modelPickerSelect) modelPickerSelect.addEventListener("change", () => syncPickerLabel("model-select", "model-label"));
     const genApplyButton = el("gen-apply");
     if (genApplyButton) genApplyButton.addEventListener("click", () => void applyRender());
+    const sendCanvasButton = el("send-canvas");
+    if (sendCanvasButton) sendCanvasButton.addEventListener("click", () => void sendCurrentToCanvas());
     const resultClose = el("result-close");
     if (resultClose)
         resultClose.addEventListener("click", () => {
